@@ -1,0 +1,22 @@
+work_dir: ${hydra:runtime.cwd}
+data_dir: /media/jyj/JYJ/RBOT-dataset
+print_config: true
+disable_lightning_logs: true
+type: prerender
+prerender_method: RBOT
+batch_size: 2
+body_names:
+- ape
+sphere_radius: 0.8
+maximum_body_diameter: 0.3
+geometry_unit_in_meter: 0.001
+image_size: 2000
+image_border_size: 20
+n_divide: 4
+normalize_to_origin: false
+num_sample_contour_point: 200
+k_min_contour_length: 15
+k_contour_normal_approx_radius: 3
+output_mask: false
+output_depth: false
+output_depth_vertex: false

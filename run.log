@@ -1,0 +1,3 @@
+[2025-09-15 23:14:49,195][matplotlib.font_manager][INFO] - Failed to extract font properties from /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf: In FT2Font: Can not load face (unknown file format; error code 0x2)
+[2025-09-15 23:14:49,318][matplotlib.font_manager][INFO] - generated new fontManager
+[2025-09-15 23:33:23,303][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt

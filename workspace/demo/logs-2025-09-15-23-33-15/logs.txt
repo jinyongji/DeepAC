@@ -1,0 +1,1 @@
+[DeepAC][09-15 23:33:23]INFO: Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
