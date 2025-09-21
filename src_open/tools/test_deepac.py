@@ -31,7 +31,7 @@ def generate_samples(mc_samples, pose_opt, batch_size, dtype, device):
     trans_high[..., 1] = 1
     trans_low[..., 2] = 0.000
     trans_high[..., 2] = 0.025
-    trans_sampler = Uniform(trans_low, trans_high)
+    trans_sampler = torch.distributions.Uniform(trans_low, trans_high)
         
     rot_low = torch.empty((batch_size, 3), dtype=dtype, device=device)
     rot_high = torch.empty((batch_size, 3), dtype=dtype, device=device)
@@ -41,7 +41,7 @@ def generate_samples(mc_samples, pose_opt, batch_size, dtype, device):
     rot_high[..., 1] = 1
     rot_low[..., 2] = 0 / 180 * pi
     rot_high[..., 2] = 25 / 180 * pi
-    rot_sampler = Uniform(rot_low, rot_high)
+    rot_sampler = torch.distributions.Uniform(rot_low, rot_high)
 
     tmp_trans_samples = trans_sampler.rsample((mc_samples,))
     tmp_rot_samples = rot_sampler.rsample((mc_samples,))
