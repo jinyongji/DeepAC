@@ -1,0 +1,23 @@
+# @package _global_
+# Prerender config for 56mm Rubik's Cube OBJ in millimeters
+
+type: prerender
+
+prerender_method: MyModel
+
+data_dir: "data/demo/"                      # Folder containing Rubiks.obj
+batch_size: 1
+body_names: ['Rubiks']                        # Mesh base name without extension
+sphere_radius: 0.8
+maximum_body_diameter: 0.12                   # 120 mm as safe bound
+geometry_unit_in_meter: 0.001                 # OBJ is in millimeters -> meters
+image_size: 2000
+image_border_size: 20
+n_divide: 4
+normalize_to_origin: False
+num_sample_contour_point: 200
+k_min_contour_length: 15
+k_contour_normal_approx_radius: 3
+output_mask: False
+output_depth: False
+output_depth_vertex: False
