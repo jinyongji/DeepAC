@@ -39,6 +39,10 @@ def demo(cfg):
     from .tools.demo import main
     main(cfg)
 
+def demo_webcam(cfg):
+    from .tools.webcam_demo import main
+    main(cfg)
+
 @hydra.main(config_path='configs/', config_name='config.yaml')
 def main(cfg: DictConfig):
     globals()[cfg.type](cfg)

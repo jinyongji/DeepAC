@@ -1,0 +1,33 @@
+# @package _global_
+# Run DeepAC demo on a live webcam stream
+
+type: demo_webcam
+
+save_dir: ${work_dir}/workspace/demo
+load_cfg: ${work_dir}/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/train_cfg.yml
+load_model: ${work_dir}/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+
+# -----------------
+# Object and template
+obj_name: Rubiks
+pre_render_pkl: ${work_dir}/data/demo/${obj_name}/pre_render/${obj_name}.pkl
+geometry_unit_in_meter: 0.001    # OBJ is in millimeters
+
+# Camera intrinsics (pixels)
+# width and height will be read from the first webcam frame
+fx: 1440.6351
+fy: 1442.8019
+cx: 642.3443
+cy: 282.1061
+
+# Tracking and output
+camera_id: 0
+output_video: true
+output_size: [640, 480]
+fore_learn_rate: 0.2
+back_learn_rate: 0.2
+gpu_id: '0' # 0, 1
+
+# Initialization
+# Initial distance in meters (rough). A 56mm cube ~0.056m; set 0.4m as start.
+init_translation_z_m: 0.4
