@@ -1,0 +1,20 @@
+type: demo
+save_dir: /home/jyj/Projects/DeepAC/workspace/demo_cube
+load_cfg: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/train_cfg.yml
+load_model: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+data_dir: /media/jyj/JYJ/cube
+obj_name: cube
+geometry_unit_in_meter: 1.0
+translation_unit_in_meter: 0.001
+crop_border: 20
+resize: 0
+pad: 0
+resize_by: max
+output_video: true
+output_size:
+- 640
+- 480
+fore_learn_rate: 0.1
+back_learn_rate: 0.1
+gpu_id: '0'
+device: cuda

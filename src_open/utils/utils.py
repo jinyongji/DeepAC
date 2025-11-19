@@ -72,15 +72,43 @@ def generate_random_aa_and_t(min_offset_angle, max_offset_angle, min_offset_tran
 
 # p2d: (n, 2) or (b, n, 2)
 # return: (4) or (b, 4), [center_x, center_y, w, h]
-def get_bbox_from_p2d(p2d):
+def get_bbox_from_p2d(p2d, trim_ratio: float = 0.0):
+    """
+    根据二维点云计算包围盒。
 
-    bbox_min, _ = torch.min(p2d, dim=-2)
-    bbox_max, _ = torch.max(p2d, dim=-2)
+    Args:
+        p2d: (..., N, 2) 张量，N 为点数。
+        trim_ratio: 去掉两端离群点的比例，范围 [0, 0.49]。例如 0.1 表示同时裁掉
+            x/y 轴最小与最大 10% 的点，只用中间 80% 计算包围盒。
+
+    Returns:
+        (..., 4) [cx, cy, w, h]
+    """
+
+    if not torch.is_tensor(p2d):
+        raise TypeError("p2d must be a torch.Tensor")
+
+    if p2d.numel() == 0:
+        raise ValueError("Cannot compute bbox from empty points")
+
+    if trim_ratio < 0 or trim_ratio >= 0.5:
+        raise ValueError("trim_ratio must be in [0, 0.5)")
+
+    coords = p2d
+    if trim_ratio == 0.0:
+        bbox_min, _ = torch.min(coords, dim=-2)
+        bbox_max, _ = torch.max(coords, dim=-2)
+    else:
+        quantiles = torch.tensor(
+            [trim_ratio, 1.0 - trim_ratio], dtype=coords.dtype, device=coords.device
+        )
+        quantile_vals = torch.quantile(coords, quantiles, dim=-2, interpolation="linear")
+        bbox_min = quantile_vals[..., 0, :]
+        bbox_max = quantile_vals[..., 1, :]
 
     bbox_center = (bbox_min + bbox_max) / 2
     bbox_wh = bbox_max - bbox_min
-    bbox = torch.cat((bbox_center, bbox_wh), dim=-1)
-    return bbox
+    return torch.cat((bbox_center, bbox_wh), dim=-1)
 
 def vertex_on_normal_to_image(centers, normals, step):
     return centers + normals * step
@@ -89,7 +117,13 @@ def get_closest_template_view_index(body2view_pose: Pose, orientations_in_body):
     orientation = body2view_pose.R.inverse() @ body2view_pose.t.unsqueeze(-1)
     orientation = torch.nn.functional.normalize(orientation, dim=-2).transpose(-1, -2)
     _, index = torch.max(torch.sum(orientation * orientations_in_body, dim=-1), dim=-1)
-
+    
+    # 确保index是1维的，避免维度问题
+    if index.ndim > 1:
+        index = index.squeeze()
+    if index.ndim == 0:
+        index = index.unsqueeze(0)
+    
     return index
 
 def get_closest_k_template_view_index(body2view_pose: Pose, orientations_in_body, k):
@@ -116,7 +150,46 @@ def project_correspondences_line(template_view, body2view_pose: Pose, camera: Ca
 
     cur_foreground_distance = foreground_distance * camera.f[..., 0].unsqueeze(-1) / centers_in_view[..., 2]
     cur_background_distance = background_distance * camera.f[..., 0].unsqueeze(-1) / centers_in_view[..., 2]
-
+    # # =============== 补丁开始 ===============
+    # # 1. 固定长度
+    # n_fixed = centers_in_body.shape[1]          # 即原始 n_sample
+    # # 2. 当前有效长度
+    # valid_mask = centers_valid                  # [B, N']
+    # Np = valid_mask.shape[1]
+    # if Np != n_fixed:
+    #     # 3. 补齐 / 裁剪到固定长度
+    #     def _pad(tensor, ndim):
+    #         if tensor.ndim == ndim:
+    #             if ndim == 2:                   # [B, N] → [B, n_fixed]
+    #                 pad_len = n_fixed - Np
+    #                 if pad_len > 0:
+    #                     pad = torch.zeros(tensor.shape[0], pad_len,
+    #                                       dtype=tensor.dtype, device=tensor.device)
+    #                     tensor = torch.cat([tensor, pad], dim=1)
+    #                 else:
+    #                     tensor = tensor[:, :n_fixed]
+    #             elif ndim == 3:                 # [B, N, C] → [B, n_fixed, C]
+    #                 pad_len = n_fixed - Np
+    #                 if pad_len > 0:
+    #                     pad = torch.zeros(tensor.shape[0], pad_len, tensor.shape[2],
+    #                                       dtype=tensor.dtype, device=tensor.device)
+    #                     tensor = torch.cat([tensor, pad], dim=1)
+    #                 else:
+    #                     tensor = tensor[:, :n_fixed]
+    #         return tensor
+    #
+    #     centers_in_image      = _pad(centers_in_image, 3)
+    #     centers_valid         = _pad(centers_valid, 2)
+    #     normals_in_image      = _pad(normals_in_image, 3)
+    #     cur_foreground_distance = _pad(cur_foreground_distance, 2)
+    #     cur_background_distance = _pad(cur_background_distance, 2)
+    #     centers_in_body       = _pad(centers_in_body, 3)
+    #     centers_in_view       = _pad(centers_in_view, 3)
+    #     # 生成 pad_mask（True 为有效，False 为 pad）
+    #     pad_mask = centers_valid
+    # else:
+    #     pad_mask = centers_valid
+    # # =============== 补丁结束 ===============
     data_lines = {'centers_in_body': centers_in_body,
                  'centers_in_view': centers_in_view,
                  'centers_in_image': centers_in_image,

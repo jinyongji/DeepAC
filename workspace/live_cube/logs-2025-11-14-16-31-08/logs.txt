@@ -1,0 +1,6 @@
+[deepac-live][11-14 16:31:10]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live][11-14 16:31:11]INFO: Guide overlay uses template view index 1280
+[deepac-live][11-14 16:31:12]INFO: Camera opened (id=0) at 1280.0x720.0
+[deepac-live][11-14 16:31:12]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube/live_20251114_163112.avi
+[deepac-live][11-14 16:31:29]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live][11-14 16:32:09]INFO: Live tracking finished

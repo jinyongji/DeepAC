@@ -39,6 +39,10 @@ def demo(cfg):
     from .tools.demo import main
     main(cfg)
 
+def demo_custom(cfg):
+    from .tools.demo_cube import run_demo
+    run_demo(cfg)
+
 @hydra.main(config_path='configs/', config_name='config.yaml')
 def main(cfg: DictConfig):
     globals()[cfg.type](cfg)

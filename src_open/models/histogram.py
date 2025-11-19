@@ -179,8 +179,24 @@ class SingleSoftHistograms(BaseModel):
         points_in_correspondence_lines_x = (points_in_correspondence_lines[..., 0] / width) * 2 - 1
         points_in_correspondence_lines_y = (points_in_correspondence_lines[..., 1] / height) * 2 - 1
         points = torch.cat((points_in_correspondence_lines_x[..., None], points_in_correspondence_lines_y[..., None]), dim=-1)
-        lines_image = torch.nn.functional.grid_sample(image, points, mode='nearest', align_corners=False)
-        
+        #lines_image = torch.nn.functional.grid_sample(image, points, mode='nearest', align_corners=False)
+        # print("[DEBUG] image.shape =", image.shape)
+        # print("[DEBUG] points.shape =", points.shape)
+
+        # --- 保证 image 是 4D (B, C, H, W) ---
+        if image.dim() == 5:
+            # print(f"[DEBUG] Before squeeze: image.shape = {image.shape}")
+            image = image.view(image.shape[0], image.shape[2], image.shape[3], image.shape[4])
+            # print(f"[DEBUG] After squeeze: image.shape = {image.shape}")
+        elif image.dim() == 3:
+            image = image.unsqueeze(0)
+        B, N, L, _ = points.shape
+
+        # --- grid reshape ---
+        grid_reshaped = points.view(B, 1, N * L, 2)  # shape: [B, 1, H_out, 2]
+        # --- 使用 grid_sample ---
+        lines_image = torch.nn.functional.grid_sample(image, grid_reshaped, mode='nearest', align_corners=False)
+        lines_image = lines_image.view(B, image.shape[1], N, L)
         # valid_fore_line = interpolate_step.squeeze(-1) <= fore_line_length.unsqueeze(-1)
         # valid_back_line = interpolate_step.squeeze(-1) >= -back_line_length.unsqueeze(-1)
         # valid_line = torch.logical_and(valid_fore_line, valid_back_line).unsqueeze(1).expand(-1, n_channel, -1, -1)

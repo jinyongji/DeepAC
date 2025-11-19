@@ -8,7 +8,7 @@ load_model: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08
 
 
 # 输出设置
-output_video: true   # 开启视频输出
+output_video: false   # 开启视频输出
 output_size: [320, 320]
 output_pose: true
 
@@ -24,8 +24,13 @@ data:
   dataset_dir: /media/jyj/JYJ/RBOT-dataset
   change_background: false
   batch_size_per_gpu: 1
-  test_obj_names: ['ape']
-  test_slices: ['a_regular']
+#  test_obj_names: # ['cube']
+#    [  'benchviseblue', 'can',
+#        'lamp', 'squirrel' ]
+  test_obj_names: ['benchviseblue']
+  test_slices: ['a_regular','b_dynamiclight']
+  #test_slices: ['c_noisy', 'd_occlusion']
+
   skip_frame: 1
   num_correspondence_lines: 200
 

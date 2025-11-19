@@ -109,12 +109,10 @@ hydra:
   overrides:
     hydra: []
     task:
-    - +prerender=RBOT
-    - body_names=["ape"]
-    - data_dir=/media/jyj/JYJ/RBOT-dataset
+    - +demo=magic_cube
   job:
     name: run
-    override_dirname: +prerender=RBOT,body_names=["ape"],data_dir=/media/jyj/JYJ/RBOT-dataset
+    override_dirname: +demo=magic_cube
     id: ???
     num: ???
     config_name: config.yaml
@@ -139,7 +137,7 @@ hydra:
       schema: structured
       provider: schema
     choices:
-      prerender: RBOT
+      demo: magic_cube
       hydra/env: default
       hydra/callbacks: null
       hydra/job_logging: default

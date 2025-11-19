@@ -386,6 +386,11 @@ class Camera(TensorWrapper):
         '''Update the camera parameters after cropping an image.'''
         left_top = self._data.new_tensor(left_top)
         size = self._data.new_tensor(size)
+        # 确保 left_top 和 size 的 batch 维度与 self._data 匹配
+        if self._data.ndim > 1:
+            # 如果有 batch 维度，需要 unsqueeze
+            left_top = left_top.unsqueeze(0)
+            size = size.unsqueeze(0)
         data = torch.cat([
             size,
             self.f,

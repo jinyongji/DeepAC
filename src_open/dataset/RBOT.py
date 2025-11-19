@@ -269,6 +269,8 @@ class _Dataset(torch.utils.data.Dataset):
             img = read_image(image_path, conf.grayscale)
         else:
             img = image
+        if len(img.shape) == 2:  # H×W
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
         if conf.crop:
             if conf.crop_border:
@@ -582,6 +584,8 @@ class _Dataset_test(_Dataset):
         last_img_id = item['last_img_id']
         output_name = item['output_name']
         ori_image = read_image(image_path, self.conf.grayscale)
+        if len(ori_image.shape) == 2:  # H×W
+            ori_image = cv2.cvtColor(ori_image, cv2.COLOR_GRAY2BGR)
         obj_id = item['obj_id']
         body2view_R = item['body2view_R'].reshape(3, 3)
         body2view_t = item['body2view_t']
