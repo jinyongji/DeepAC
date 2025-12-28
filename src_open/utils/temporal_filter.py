@@ -119,3 +119,4 @@ class AdaptiveTemporalFilter:
         self.initialized = False
         self.smoothed_pose = None
         self.prev_pose = None
+
