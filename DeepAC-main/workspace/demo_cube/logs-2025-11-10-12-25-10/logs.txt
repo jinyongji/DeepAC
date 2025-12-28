@@ -1,0 +1,5 @@
+[DeepAC_Cube][11-10 12:25:12]INFO: Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[DeepAC_Cube][11-10 12:25:12]INFO: Initial translation (m): 0.08943506330251694
+[DeepAC_Cube][11-10 12:25:12]INFO: Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_cube/logs-2025-11-10-12-25-10/initial_projection_check.jpg
+[DeepAC_Cube][11-10 12:25:12]INFO: bbox2d first frame: [778.225341796875, 237.49737548828125, 135.10101318359375, 118.94871520996094], img shape: [3, 160, 192], camera size: [192.0, 160.0]
+[DeepAC_Cube][11-10 12:26:02]INFO: Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_cube/logs-2025-11-10-12-25-10

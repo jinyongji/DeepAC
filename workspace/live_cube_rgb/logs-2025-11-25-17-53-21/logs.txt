@@ -1,0 +1,3 @@
+[deepac-live][11-25 17:53:23]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live][11-25 17:53:23]INFO: Guide overlay uses template view index 1280
+[deepac-live][11-25 17:53:23]INFO: Using camera ID: 1 (from config)

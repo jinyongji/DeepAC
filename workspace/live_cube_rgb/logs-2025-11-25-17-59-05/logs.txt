@@ -1,0 +1,8 @@
+[deepac-live][11-25 17:59:07]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live][11-25 17:59:07]INFO: Guide overlay uses template view index 1280
+[deepac-live][11-25 17:59:07]INFO: Using camera ID: 0 (from config)
+[deepac-live][11-25 17:59:07]INFO: Camera opened (id=0) at 1280.0x720.0
+[deepac-live][11-25 17:59:07]INFO: Pose smoothing enabled with alpha=0.30
+[deepac-live][11-25 17:59:07]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_rgb/live_20251125_175907.avi
+[deepac-live][11-25 17:59:33]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live][11-25 18:00:45]INFO: Live tracking finished

@@ -1,0 +1,4 @@
+[DeepAC_Cube][11-24 09:15:14]INFO: Initial translation (mm): [209.31065368652344, -39.5663948059082, 1220.0306396484375]
+[DeepAC_Cube][11-24 09:15:14]INFO: Applied visual scale: 2.20x (cube size: 0.123m)
+[DeepAC_Cube][11-24 09:15:14]INFO: Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_ir_cube_track/logs-2025-11-24-09-15-12/initial_projection_check.jpg
+[DeepAC_Cube][11-24 09:16:07]INFO: Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_ir_cube_track/logs-2025-11-24-09-15-12

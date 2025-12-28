@@ -1,0 +1,12 @@
+[deepac-live-realsense-ir][12-23 20:44:03]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-realsense-ir][12-23 20:44:04]INFO: Guide overlay uses template view index 1280
+[deepac-live-realsense-ir][12-23 20:44:04]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.55
+[deepac-live-realsense-ir][12-23 20:44:04]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_realsense_ir/live_realsense_ir_20251223_204404.avi
+[deepac-live-realsense-ir][12-23 20:44:15]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-realsense-ir][12-23 20:44:16]INFO: Frame 0: template_idx=1229 pose_t=(0.0012, -0.0048, 0.4301) pose_change_t=0.019380m pose_change_R=3.639deg
+[deepac-live-realsense-ir][12-23 20:44:18]INFO: Frame 10: template_idx=965 pose_t=(-0.0106, 0.0064, 0.4118) pose_change_t=0.001726m pose_change_R=6.827deg
+[deepac-live-realsense-ir][12-23 20:44:20]INFO: Frame 20: template_idx=493 pose_t=(-0.0208, -0.0127, 0.4012) pose_change_t=0.004780m pose_change_R=1.569deg
+[deepac-live-realsense-ir][12-23 20:44:22]INFO: Frame 30: template_idx=493 pose_t=(-0.0552, -0.0310, 0.4175) pose_change_t=0.007024m pose_change_R=2.696deg
+[deepac-live-realsense-ir][12-23 20:44:24]INFO: Frame 40: template_idx=1067 pose_t=(-0.0810, -0.0503, 0.4910) pose_change_t=0.009540m pose_change_R=3.453deg
+[deepac-live-realsense-ir][12-23 20:44:26]INFO: Frame 50: template_idx=1337 pose_t=(-0.0902, -0.0660, 0.5189) pose_change_t=0.010124m pose_change_R=2.084deg
+[deepac-live-realsense-ir][12-23 20:44:28]INFO: Live tracking finished

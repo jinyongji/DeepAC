@@ -1,0 +1,130 @@
+type: train
+save_dir: /home/jyj/Projects/DeepAC/workspace/train_rbot_cube_gray
+data:
+  name: RBOT
+  dataset_dir: /media/jyj/JYJ/RBOT-gray
+  train_obj_names:
+  - cube
+  train_slices:
+  - a_regular
+  - b_dynamiclight
+  - c_noisy
+  val_obj_names:
+  - cube
+  val_slices:
+  - d_occlusion
+  train_num_per_obj: 2000
+  val_num_per_obj: 500
+  random_sample: true
+  geometry_unit_in_meter: 0.001
+  offset_angle_step: 5.0
+  min_offset_angle: 5.0
+  max_offset_angle: 15.0
+  offset_translation_step: 0.01
+  min_offset_translation: 0.005
+  max_offset_translation: 0.015
+  val_offset: true
+  train_offset: true
+  skip_frame: 1
+  num_correspondence_lines: 200
+  sample_vertex_num: 500
+  grayscale: true
+  resize: 320
+  resize_by: max
+  crop: false
+  crop_border: None
+  pad: 0
+  change_background: false
+  change_background_thres: 0.5
+  img_aug: true
+  get_top_k_template_views: 5
+  skip_template_view: 6
+  seed: 0
+  debug_check_display: false
+models:
+  name: deep_ac
+  scales:
+  - 2
+  - 2
+  - 1
+  - 1
+  - 0
+  - 0
+  success_thresh: 2
+  regulation_distribution_mean: false
+  down_sample_image_mode: bilinear
+  function_length: 8
+  distribution_length: 12
+  function_slope: 0.0
+  function_amplitude: 0.36
+  min_continuous_distance: 6.0
+  learning_rate: 1.3
+  alternative_optimizing: false
+  optimizer:
+    name: learned_optimizer
+    lambda_: 0.01
+    damping:
+      type: constant
+      log_range:
+      - -5
+      - 6
+    trainable: false
+  extractor:
+    name: backbone_unet
+    num_output_layer: 3
+    output_dim:
+    - 16
+    - 16
+    - 16
+    encoder: mobileone_s0
+    encoder_depth: 5
+    decoder: UnetDecoder
+    decoder_channels:
+    - 256
+    - 128
+    - 64
+    - 32
+    - 16
+    align_data_to_pretrain: false
+    pretrained_weights: imagenet
+    trainable: true
+    in_channels: 1
+  histogram:
+    name: histogram
+    num_bin: 32
+    num_channel: 1
+    unconsidered_line_length: 1
+    considered_line_length: 18
+    trainable: false
+  line_distribution_extractor:
+    name: line_distribution_extractor
+    scales:
+    - 1
+    function_length: 8
+    distribution_length: 12
+    in_channel: 16
+    out_channel: 1
+    cat_fore_prob: true
+    cat_distribution: true
+trainer:
+  total_epochs: 10
+  val_intervals: 1
+  val_visualize: false
+  optimizer:
+    name: Adam
+    lr: 0.001
+    lr_scaling:
+    - - 100
+      - - dampingnet.const
+    weight_decay: 0.0
+  lr_schedule:
+    name: StepLR
+    step_size: 2
+    gamma: 0.5
+  log:
+    interval: 2
+  seed: 0
+  dataset_callback_fn: sample_new_items
+device:
+  gpu_ids:
+  - 0

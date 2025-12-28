@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -7,8 +6,9 @@ import math
 
 from .base_model import BaseModel
 from ..models import get_model
-from ..utils.utils import masked_mean, get_closest_template_view_index # , project_correspondences_line
+from ..utils.utils import masked_mean, get_closest_template_view_index  # , project_correspondences_line
 from ..utils.geometry.losses import scaled_barron, error_add, error_add_s
+
 
 # @torch.jit.script
 def skew_symmetric(v):
@@ -19,8 +19,9 @@ def skew_symmetric(v):
         z, -v[..., 2], v[..., 1],
         v[..., 2], z, -v[..., 0],
         -v[..., 1], v[..., 0], z,
-    ], dim=-1).reshape(v.shape[:-1]+(3, 3))
+    ], dim=-1).reshape(v.shape[:-1] + (3, 3))
     return M
+
 
 @torch.jit.script
 def transform_p3d(body2view_pose_data, p3d):
@@ -28,14 +29,16 @@ def transform_p3d(body2view_pose_data, p3d):
     t = body2view_pose_data[..., 9:]
     return p3d @ R.transpose(-1, -2) + t.unsqueeze(-2)
 
+
 @torch.jit.script
 def rotate_p3d(body2view_pose_data, p3d):
     R = body2view_pose_data[..., :9].view(-1, 3, 3)
     return p3d @ R.transpose(-1, -2)
 
+
 @torch.jit.script
 def project_p3d(camera_data, p3d):
-    eps=1e-4
+    eps = 1e-4
 
     z = p3d[..., -1]
     valid1 = z > eps
@@ -54,6 +57,7 @@ def project_p3d(camera_data, p3d):
     valid = torch.logical_and(valid1, valid2)
 
     return p2d, valid
+
 
 @torch.jit.script
 def project_correspondences_line(template_view, body2view_pose_data, camera_data):
@@ -94,20 +98,22 @@ def project_correspondences_line(template_view, body2view_pose_data, camera_data
 
 
 @torch.jit.script
-def calculate_basic_line_data(template_view, body2view_pose_data, camera_data, fscale: float, min_continuous_distance: float):
+def calculate_basic_line_data(template_view, body2view_pose_data, camera_data, fscale: float,
+                              min_continuous_distance: float):
     # deformed_body2view_pose = Pose.from_4x4mat(body2view_pose_data)
     # camera = Camera(camera_data)
     # calculate basic line data
     centers_in_body, centers_in_view, centers_in_image, centers_valid, normals_in_image, cur_foreground_distance, cur_background_distance \
-    = project_correspondences_line(template_view, body2view_pose_data, camera_data)
+        = project_correspondences_line(template_view, body2view_pose_data, camera_data)
     foreground_distance = cur_foreground_distance
     background_distance = cur_background_distance
-    continuous_distance = torch.cat((foreground_distance.unsqueeze(-1), background_distance.unsqueeze(-1)), dim=-1) / fscale
+    continuous_distance = torch.cat((foreground_distance.unsqueeze(-1), background_distance.unsqueeze(-1)),
+                                    dim=-1) / fscale
     continuous_distance, _ = torch.min(continuous_distance, dim=-1)
-    
+
     # calculate valid data line
     valid_data_line = torch.logical_and((continuous_distance >= min_continuous_distance), centers_valid)
- 
+
     # & (data_line['continuous_distance'] > self.line_length_in_segments)
 
     # if torch.any(torch.isnan(data_lines['normals_in_image'])) or torch.any(torch.isnan(data_lines['centers_in_image'])) \
@@ -115,12 +121,14 @@ def calculate_basic_line_data(template_view, body2view_pose_data, camera_data, f
     #     import ipdb;
     #     ipdb.set_trace();
 
-    return centers_in_body, centers_in_view, centers_in_image, centers_valid, normals_in_image,\
-           foreground_distance, background_distance, valid_data_line
+    return centers_in_body, centers_in_view, centers_in_image, centers_valid, normals_in_image, \
+        foreground_distance, background_distance, valid_data_line
+
 
 class ContourFeatureMapExtractor(nn.Module):
-    
-    def __init__(self, histogram, function_amplitude, function_slope, min_continuous_distance, scale, fscale, line_length, 
+
+    def __init__(self, histogram, function_amplitude, function_slope, min_continuous_distance, scale, fscale,
+                 line_length,
                  line_length_minus_1, line_length_minus_1_half, line_length_half_minus_1, line_length_in_segments):
         """Perform some logic and call the _init method of the child model."""
         super().__init__()
@@ -179,8 +187,10 @@ class ContourFeatureMapExtractor(nn.Module):
                                                     self.line_length_in_segments), device=device)
 
         lines_feature = torch.nn.functional.grid_sample(feature, points, mode='bilinear', align_corners=False)
-        lines_amplitude = torch.ones(size=(lines_image_pf_segments.shape[0], lines_image_pf_segments.shape[1])).to(device) * self.function_amplitude
-        lines_slop = torch.ones(size=(lines_image_pf_segments.shape[0], lines_image_pf_segments.shape[1])).to(device) * self.function_slope
+        lines_amplitude = torch.ones(size=(lines_image_pf_segments.shape[0], lines_image_pf_segments.shape[1])).to(
+            device) * self.function_amplitude
+        lines_slop = torch.ones(size=(lines_image_pf_segments.shape[0], lines_image_pf_segments.shape[1])).to(
+            device) * self.function_slope
 
         # for s in range(self.line_length_in_segments):
         #     lines_image_pf_segments[..., s] = torch.prod(lines_image_pf[..., s * scale: (s + 1) * scale], dim=-1)
@@ -188,7 +198,8 @@ class ContourFeatureMapExtractor(nn.Module):
         lines_image_pf_segments = lines_image_pf
         lines_image_pb_segments = lines_image_pb
 
-        lines_image_pseg_zero_index = torch.logical_and((lines_image_pf_segments < self.eps), (lines_image_pb_segments < self.eps))
+        lines_image_pseg_zero_index = torch.logical_and((lines_image_pf_segments < self.eps),
+                                                        (lines_image_pb_segments < self.eps))
         lines_image_pf_segments[lines_image_pseg_zero_index] = self.eps
         lines_image_pb_segments[lines_image_pseg_zero_index] = self.eps
         # lines_image_pf_segments += self.eps
@@ -201,17 +212,19 @@ class ContourFeatureMapExtractor(nn.Module):
 
     def forward(self, image, feature, init_body2view_pose_data, camera_data, template_view, fore_hist, back_hist):
         centers_in_body, centers_in_view, centers_in_image, centers_valid, normals_in_image, foreground_distance, background_distance, valid_data_line \
-        = calculate_basic_line_data(template_view, init_body2view_pose_data, camera_data, 1, self.min_continuous_distance)
+            = calculate_basic_line_data(template_view, init_body2view_pose_data, camera_data, 1,
+                                        self.min_continuous_distance)
 
         width, height = feature.shape[2:]
         device = feature.device
         lines_image_pf_segments, lines_image_pb_segments, valid_data_line, lines_amplitude, lines_slop, lines_feature = \
-            self.calculate_segment_probabilities(feature, image, normals_in_image, centers_in_image, 
+            self.calculate_segment_probabilities(feature, image, normals_in_image, centers_in_image,
                                                  fore_hist, back_hist, valid_data_line,
                                                  width, height, device)
 
         return normals_in_image, centers_in_image, centers_in_body, \
-               lines_image_pf_segments, lines_image_pb_segments, valid_data_line, lines_amplitude, lines_slop, lines_feature
+            lines_image_pf_segments, lines_image_pb_segments, valid_data_line, lines_amplitude, lines_slop, lines_feature
+
 
 class BoundaryPredictor(nn.Module):
     def __init__(self, function_slope, function_length, distribution_length, line_distribution_extractor):
@@ -220,7 +233,7 @@ class BoundaryPredictor(nn.Module):
         self.function_slope = function_slope
         self.function_length = function_length
         self.distribution_length = distribution_length
-        self.distribution_length_minus_1_half = (distribution_length-1) / 2
+        self.distribution_length_minus_1_half = (distribution_length - 1) / 2
         self.line_distribution_extractor = line_distribution_extractor
 
     def calculate_distribution(self, lines_feature, lines_image_pf_segments, lines_image_pb_segments,
@@ -234,7 +247,7 @@ class BoundaryPredictor(nn.Module):
             function_lookup_f = 0.5 - function_amplitude * torch.sign(x)
         else:
             function_lookup_f = 0.5 - function_amplitude * torch.tanh(x / (2 * function_slop))
-        
+
         function_lookup_b = 1 - function_lookup_f
         min_variance_laplace = (1.0 / (2.0 * torch.pow(torch.atanh(2.0 * function_amplitude[..., 0]), 2.0))).float()
         min_variance_gaussian = function_slop[..., 0]
@@ -256,12 +269,12 @@ class BoundaryPredictor(nn.Module):
                'distributions': statistical_distributions, 'pf': lines_image_pf_segments}
         # distributions, distribution_uncertainties = self.line_distribution_extractor(inp)
         distributions = self.line_distribution_extractor(inp)
-        
+
         # return distributions
         if torch.any(torch.isnan(distributions)):
             import ipdb;
             ipdb.set_trace();
-        
+
         # if torch.any(torch.isnan(distributions)) or torch.any(torch.isnan(distribution_uncertainties)):
         #     import ipdb;
         #     ipdb.set_trace();
@@ -269,7 +282,7 @@ class BoundaryPredictor(nn.Module):
         distribution_mean, distribution_variance, distribution_standard_deviation = \
             self.fit_gaussian_distribution(distributions, min_variance, device)
 
-        return distributions, distribution_mean, 1 / distribution_variance # , distribution_standard_deviation
+        return distributions, distribution_mean, 1 / distribution_variance  # , distribution_standard_deviation
         # return distribution_mean, distribution_uncertainties # , statistical_distributions
 
     def fit_gaussian_distribution(self, distributions, min_variance, device):
@@ -292,6 +305,7 @@ class BoundaryPredictor(nn.Module):
         return self.calculate_distribution(lines_feature, lines_image_pf_segments, lines_image_pb_segments,
                                            lines_slop, lines_amplitude, lines_feature.device)
 
+
 class DerivativeCalculator(nn.Module):
     def __init__(self, alternative_optimizing, distribution_length, distribution_length_plus_1_half, learning_rate):
         """Perform some logic and call the _init method of the child model."""
@@ -300,8 +314,8 @@ class DerivativeCalculator(nn.Module):
         self.distribution_length = distribution_length
         self.distribution_length_plus_1_half = distribution_length_plus_1_half
         self.learning_rate = learning_rate
-    
-    def calculate_gradient_and_hessian(self, it, normals_in_image, centers_in_image, centers_in_body, 
+
+    def calculate_gradient_and_hessian(self, it, normals_in_image, centers_in_image, centers_in_body,
                                        deformed_body2view_pose_data, camera_data, valid_data_line,
                                        distributions, distribution_mean, distribution_uncertainties, device):
 
@@ -328,12 +342,14 @@ class DerivativeCalculator(nn.Module):
                     * (centers_in_image_u - original_centers_in_image[..., 0])
                     + original_normals_in_image[..., 1]
                     * (centers_in_image_v - original_centers_in_image[..., 1]))
-        
+
         if self.alternative_optimizing == False:
-            dloglikelihood_ddelta_cs = (distribution_mean - delta_cs) * distribution_uncertainties # / distribution_variance
+            dloglikelihood_ddelta_cs = (
+                                                   distribution_mean - delta_cs) * distribution_uncertainties  # / distribution_variance
         else:
             if it % 2 == 0:
-                dloglikelihood_ddelta_cs = (distribution_mean - delta_cs) * distribution_uncertainties # / distribution_variance
+                dloglikelihood_ddelta_cs = (
+                                                       distribution_mean - delta_cs) * distribution_uncertainties  # / distribution_variance
             else:
                 dist_idx_upper = (delta_cs + self.distribution_length_plus_1_half).long()
                 dist_idx_lower = dist_idx_upper - 1
@@ -351,13 +367,14 @@ class DerivativeCalculator(nn.Module):
                 distribution_lower = torch.gather(input=distributions, index=dist_idx_lower.unsqueeze(-1), dim=-1)
                 distribution_min = torch.ones_like(distribution_upper.squeeze(-1)) * 0.00001
                 dloglikelihood_ddelta_cs = (torch.log(torch.maximum(distribution_upper.squeeze(-1), distribution_min))
-                                            - torch.log(torch.maximum(distribution_lower.squeeze(-1), distribution_min))) \
-                                           * self.learning_rate * distribution_uncertainties # / distribution_variance
+                                            - torch.log(
+                            torch.maximum(distribution_lower.squeeze(-1), distribution_min))) \
+                                           * self.learning_rate * distribution_uncertainties  # / distribution_variance
 
-        ddelta_cs_dcenter_x =  original_normals_in_image[..., 0] * fu_z
-        ddelta_cs_dcenter_y =  original_normals_in_image[..., 1] * fv_z
-        ddelta_cs_dcenter_z =  (-original_normals_in_image[..., 0] * xfu_z
-                                - original_normals_in_image[..., 1] * yfv_z) / z
+        ddelta_cs_dcenter_x = original_normals_in_image[..., 0] * fu_z
+        ddelta_cs_dcenter_y = original_normals_in_image[..., 1] * fv_z
+        ddelta_cs_dcenter_z = (-original_normals_in_image[..., 0] * xfu_z
+                               - original_normals_in_image[..., 1] * yfv_z) / z
         ddelta_cs_dcenter = torch.cat((ddelta_cs_dcenter_x.unsqueeze(-1), ddelta_cs_dcenter_y.unsqueeze(-1),
                                        ddelta_cs_dcenter_z.unsqueeze(-1)), dim=-1).unsqueeze(-2)
 
@@ -388,14 +405,13 @@ class DerivativeCalculator(nn.Module):
 
         return gradient.unsqueeze(-1), hessian
 
-    def forward(self, normals_in_image, centers_in_image, centers_in_body, 
-                      deformed_body2view_pose_data, camera_data, valid_data_line,
-                      distributions, distribution_mean, distribution_uncertainties, it=0):
-        return self.calculate_gradient_and_hessian(it, normals_in_image, centers_in_image, centers_in_body, 
+    def forward(self, normals_in_image, centers_in_image, centers_in_body,
+                deformed_body2view_pose_data, camera_data, valid_data_line,
+                distributions, distribution_mean, distribution_uncertainties, it=0):
+        return self.calculate_gradient_and_hessian(it, normals_in_image, centers_in_image, centers_in_body,
                                                    deformed_body2view_pose_data, camera_data, valid_data_line,
                                                    distributions, distribution_mean, distribution_uncertainties,
                                                    normals_in_image.device)
-
 
 
 class DeepAC(BaseModel):
@@ -405,7 +421,7 @@ class DeepAC(BaseModel):
         'clamp_error': 50,
         'regulation_distribution_mean': False,
         'down_sample_image_mode': 'bilinear',
-        
+
         'function_length': 8,
         'distribution_length': 16,
         'function_slope': 0.0,
@@ -442,16 +458,15 @@ class DeepAC(BaseModel):
             self.precalculate_scale_dependent_variables()
 
         self.contour_feature_map_extractor = \
-            ContourFeatureMapExtractor(self.histogram, self.function_amplitude, self.function_slope, 
-                                       self.min_continuous_distance, scale, fscale, line_length, line_length_minus_1, 
+            ContourFeatureMapExtractor(self.histogram, self.function_amplitude, self.function_slope,
+                                       self.min_continuous_distance, scale, fscale, line_length, line_length_minus_1,
                                        line_length_minus_1_half, line_length_half_minus_1, self.line_length_in_segments)
-        self.line_distribution_extractor = get_model(conf.line_distribution_extractor.name)\
-                                                    (conf.line_distribution_extractor)
-        self.boundary_predictor =  BoundaryPredictor(self.function_slope, self.function_length, self.distribution_length,
-                                                     self.line_distribution_extractor)
-        self.derivative_calculator = DerivativeCalculator(conf.alternative_optimizing, self.distribution_length, 
+        self.line_distribution_extractor = get_model(conf.line_distribution_extractor.name) \
+            (conf.line_distribution_extractor)
+        self.boundary_predictor = BoundaryPredictor(self.function_slope, self.function_length, self.distribution_length,
+                                                    self.line_distribution_extractor)
+        self.derivative_calculator = DerivativeCalculator(conf.alternative_optimizing, self.distribution_length,
                                                           self.distribution_length_plus_1_half, self.learning_rate)
-
 
     def precalculate_function_lookup(self):
         x = torch.arange(0, self.function_length, dtype=torch.float32) - float(self.function_length - 1) / 2
@@ -480,7 +495,6 @@ class DeepAC(BaseModel):
 
         return scale, fscale, line_length, line_length_minus_1, line_length_minus_1_half, line_length_half_minus_1
 
-
     def visualize_optimization(self, body2view_pose, data):
         import cv2
         from ..utils.draw_tutorial import draw_correspondence_lines_in_image
@@ -493,22 +507,23 @@ class DeepAC(BaseModel):
         _, _, centers_in_image, centers_valid, normals_in_image, _, _ = \
             project_correspondences_line(template_view, body2view_pose._data, data['camera']._data)
 
-        images = (data['image'].permute(0, 2, 3, 1).detach().cpu().numpy( ) *255).astype(np.uint8).copy()
+        images = (data['image'].permute(0, 2, 3, 1).detach().cpu().numpy() * 255).astype(np.uint8).copy()
         centers_in_image = centers_in_image.detach().cpu().numpy()
         centers_valid = centers_valid.detach().cpu().numpy()
         normals_in_image = normals_in_image.detach().cpu().numpy()
         optimizing_result_imgs = None
         for b in range(batch_size):
             optimizing_result_img = draw_correspondence_lines_in_image(images[b], centers_in_image[b],
-                                                                       centers_valid[b], normals_in_image[b], 0, center_color=(0, 255, 0))
+                                                                       centers_valid[b], normals_in_image[b], 0,
+                                                                       center_color=(0, 255, 0))
             optimizing_result_img = cv2.cvtColor(optimizing_result_img, cv2.COLOR_RGB2BGR)
             if optimizing_result_imgs is None:
                 optimizing_result_imgs = optimizing_result_img[None]
             else:
-                optimizing_result_imgs = np.append(optimizing_result_imgs,  optimizing_result_img[None], axis=0)
+                optimizing_result_imgs = np.append(optimizing_result_imgs, optimizing_result_img[None], axis=0)
             # cv2.imwrite("test.png", display_img)
         data['optimizing_result_imgs'].append(optimizing_result_imgs)
-    
+
     def init_histogram(self, data):
         camera = data['camera']
         gt_body2view_pose = data['gt_body2view_pose']
@@ -516,11 +531,14 @@ class DeepAC(BaseModel):
         closest_orientations_in_body = data['closest_orientations_in_body']
         closest_template_views = data['closest_template_views']
         index = get_closest_template_view_index(gt_body2view_pose, closest_orientations_in_body)
-        template_view = torch.stack([closest_template_views[b][index[b]] for b in range(closest_template_views.shape[0])])
+        template_view = torch.stack(
+            [closest_template_views[b][index[b]] for b in range(closest_template_views.shape[0])])
 
         _, _, centers_in_image, centers_valid, normals_in_image, foreground_distance, background_distance, _ = \
-        calculate_basic_line_data(template_view, gt_body2view_pose._data, camera._data, 1, self.min_continuous_distance)
-        fore_hist, back_hist = self.histogram.calculate_histogram(image, centers_in_image, centers_valid, normals_in_image, 
+            calculate_basic_line_data(template_view, gt_body2view_pose._data, camera._data, 1,
+                                      self.min_continuous_distance)
+        fore_hist, back_hist = self.histogram.calculate_histogram(image, centers_in_image, centers_valid,
+                                                                  normals_in_image,
                                                                   foreground_distance, background_distance, True)
         # seg_image = self.histogram.get_segmentation_from_hist(image, fore_hist, back_hist).detach().cpu().numpy().astype(np.uint8)
         # cv2.imwrite('seg_image0.png', seg_image[0])
@@ -531,28 +549,32 @@ class DeepAC(BaseModel):
         return fore_hist, back_hist
 
     # def forward(self, image, feature, init_body2view_pose_data, camera_data, template_view, fore_hist, back_hist, it=0):
-    def run_iteration(self, image, feature, init_body2view_pose_data, camera_data, template_view, fore_hist, back_hist, it=0):
-        
+    def run_iteration(self, image, feature, init_body2view_pose_data, camera_data, template_view, fore_hist, back_hist,
+                      it=0):
+
         if torch.any(torch.isnan(feature)):
             import ipdb;
             ipdb.set_trace();
 
         normals_in_image, centers_in_image, centers_in_body, \
-        lines_image_pf_segments, lines_image_pb_segments, valid_data_line, lines_amplitude, lines_slop, lines_feature = \
-            self.contour_feature_map_extractor.forward(image, feature, init_body2view_pose_data, camera_data, template_view, fore_hist, back_hist)
+            lines_image_pf_segments, lines_image_pb_segments, valid_data_line, lines_amplitude, lines_slop, lines_feature = \
+            self.contour_feature_map_extractor.forward(image, feature, init_body2view_pose_data, camera_data,
+                                                       template_view, fore_hist, back_hist)
 
         # distributions, distribution_mean, distribution_variance, distribution_standard_deviation =\
-        distributions, distribution_mean, distribution_uncertainties =\
-            self.boundary_predictor.forward(lines_feature, lines_image_pf_segments, lines_image_pb_segments, lines_slop, lines_amplitude)
+        distributions, distribution_mean, distribution_uncertainties = \
+            self.boundary_predictor.forward(lines_feature, lines_image_pf_segments, lines_image_pb_segments, lines_slop,
+                                            lines_amplitude)
         # distribution_uncertainties = 1 / distribution_variance
 
         gradient, hessian = \
-        self.derivative_calculator.forward(normals_in_image, centers_in_image, centers_in_body, init_body2view_pose_data, camera_data,
-                                           valid_data_line, distributions, distribution_mean, distribution_uncertainties, it)
+            self.derivative_calculator.forward(normals_in_image, centers_in_image, centers_in_body,
+                                               init_body2view_pose_data, camera_data,
+                                               valid_data_line, distributions, distribution_mean,
+                                               distribution_uncertainties, it)
 
         # return gradient, hessian, distribution_mean, distribution_uncertainties
         return gradient, hessian
-
 
     def _forward(self, data, visualize=False, tracking=False):
         # data['weight_imgs'] = []
@@ -563,7 +585,7 @@ class DeepAC(BaseModel):
         image = data['image']
         B, _, H, W = image.shape
         features = self.extractor._forward(image)
-        
+
         if tracking == False:
             fore_hist, back_hist = self.init_histogram(data)
         else:
@@ -581,13 +603,16 @@ class DeepAC(BaseModel):
             camera_pyr = camera.scale(1 / image_scale)
             h_cur = H // int(image_scale)
             w_cur = W // int(image_scale)
-            image_pyr = torch.nn.functional.interpolate(image, size=(h_cur, w_cur), mode=self.conf.down_sample_image_mode)
-            feature = features[-(s+1)]
+            image_pyr = torch.nn.functional.interpolate(image, size=(h_cur, w_cur),
+                                                        mode=self.conf.down_sample_image_mode)
+            feature = features[-(s + 1)]
 
             index = get_closest_template_view_index(init_body2view_pose, closest_orientations_in_body)
-            template_view = torch.stack([closest_template_views[b][index[b]] for b in range(closest_template_views.shape[0])])
-            
-            B, A = self.run_iteration(image_pyr, feature, init_body2view_pose._data, camera_pyr._data, template_view, fore_hist, back_hist, it)
+            template_view = torch.stack(
+                [closest_template_views[b][index[b]] for b in range(closest_template_views.shape[0])])
+
+            B, A = self.run_iteration(image_pyr, feature, init_body2view_pose._data, camera_pyr._data, template_view,
+                                      fore_hist, back_hist, it)
 
             optimizing_pose_q = optimizer(dict(pose=init_body2view_pose, B=B, A=A))
             data['opt_body2view_pose'].append(optimizing_pose_q)
@@ -598,6 +623,7 @@ class DeepAC(BaseModel):
     def loss(self, pred, data):
 
         cam = pred['camera']
+
         def project(body2view_pose, centers_in_body):
             centers_in_view = body2view_pose.transform(centers_in_body)
             return cam.view2image(centers_in_view)
@@ -664,7 +690,7 @@ class DeepAC(BaseModel):
             err_t = torch.norm(body2view_pose.t - gt_body2view_pose.t, dim=-1)
             # err_R = torch.acos((torch.trace(body2view_pose.R.permute(0, 2, 1) @ gt_body2view_pose.R) - 1) / 2)
             err_R = torch.acos((((body2view_pose.R @ gt_view2body_pose.R)
-                                .diagonal(offset=0, dim1=-1, dim2=-2).sum(-1) - 1) / 2).clamp(-1, 1))
+                                 .diagonal(offset=0, dim1=-1, dim2=-2).sum(-1) - 1) / 2).clamp(-1, 1))
             err_R = torch.rad2deg(err_R)
             # err_R, err_t = (body2view_pose @ gt_view2body_pose).magnitude()
             # if self.conf.normalize_dt:

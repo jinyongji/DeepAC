@@ -40,6 +40,12 @@ def parse_args():
         default=None,
         help="Override device, e.g. cuda:0 / cpu",
     )
+    parser.add_argument(
+        "--camera_id",
+        type=int,
+        default=None,
+        help="Override camera ID (e.g., 0 for built-in, 1 for USB camera)",
+    )
     return parser.parse_args()
 
 
@@ -169,9 +175,30 @@ def preprocess_image(img, bbox2d, camera_cpu, data_conf, device):
     return img_tensor.to(device), camera_out.to(device)
 
 
-def preprocess_frame(frame_bgr, camera_cfg, device):
-    """构建原始相机，不进行resize"""
-    frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+def preprocess_frame(frame_bgr, camera_cfg, device, grayscale=False):
+    """构建原始相机，不进行resize
+    
+    Args:
+        frame_bgr: BGR格式的图像（或灰度图）
+        camera_cfg: 相机配置
+        device: 设备
+        grayscale: 是否为灰度图模式（夜间红外模式）
+    """
+    # 如果是灰度图模式，frame_bgr可能是单通道灰度图
+    if grayscale:
+        if len(frame_bgr.shape) == 2:
+            # 单通道灰度图，转换为RGB（复制3次通道）
+            frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_GRAY2RGB)
+        elif frame_bgr.shape[2] == 1:
+            # 单通道但维度是3维，转换为RGB
+            frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_GRAY2RGB)
+        else:
+            # 已经是多通道，但可能是BGR，转换为RGB
+            frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+    else:
+        # RGB模式，BGR转RGB
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+    
     intrinsic_param = build_camera_tensor(camera_cfg, frame_rgb.shape, device)
     camera = Camera(intrinsic_param)
     return frame_rgb, camera
@@ -702,6 +729,57 @@ def estimate_translation_from_bbox(camera, bbox, object_diameter):
 
 
 @torch.no_grad()
+def smooth_pose(prev_pose: Pose, new_pose: Pose, alpha: float) -> Pose:
+    """平滑pose更新，减少抖动"""
+    if prev_pose is None or alpha <= 0.0:
+        return new_pose.detach()
+    device_local = new_pose._data.device
+    prev_pose_d = prev_pose.to(device_local)
+    
+    # 处理batch维度
+    if prev_pose_d._data.ndim > 1:
+        prev_pose_d = Pose(prev_pose_d._data[0])
+    if new_pose._data.ndim > 1:
+        new_pose = Pose(new_pose._data[0])
+    
+    prev_R = prev_pose_d.R
+    new_R = new_pose.R
+    
+    # 处理batch维度
+    if prev_R.ndim == 3:
+        prev_R = prev_R[0]
+    if new_R.ndim == 3:
+        new_R = new_R[0]
+    
+    blended = alpha * prev_R + (1.0 - alpha) * new_R
+    u, _, vT = torch.linalg.svd(blended)
+    R_s = u @ vT
+    det_val = torch.det(R_s)
+    if det_val.dim() == 0:
+        if det_val < 0:
+            u[:, -1] *= -1
+            R_s = u @ vT
+    else:
+        neg_idx = det_val < 0
+        if neg_idx.any():
+            u[neg_idx, :, -1] *= -1
+            R_s = u @ vT
+    
+    prev_t = prev_pose_d.t
+    new_t = new_pose.t
+    
+    # 处理batch维度
+    if prev_t.ndim == 2:
+        prev_t = prev_t[0]
+    if new_t.ndim == 2:
+        new_t = new_t[0]
+    
+    t_s = alpha * prev_t + (1.0 - alpha) * new_t
+    pose = Pose.from_Rt(R_s, t_s)
+    return pose.to(device_local)
+
+
+@torch.no_grad()
 def draw_overlay(frame_rgb, bbox, centers_in_image, centers_valid, color=(0, 255, 0), input_is_bgr=False):
     frame_bgr = frame_rgb if input_is_bgr else cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
     if bbox is not None:
@@ -792,15 +870,20 @@ def main():
     )
     logger.info(f"Guide overlay uses template view index {initial_view_idx}")
 
-    cap = cv2.VideoCapture(int(cfg.camera.camera_id))
+    # 允许命令行参数覆盖配置文件中的camera_id
+    camera_id = args.camera_id if args.camera_id is not None else int(cfg.camera.camera_id)
+    logger.info(f"Using camera ID: {camera_id} {'(from command line)' if args.camera_id is not None else '(from config)'}")
+    
+    cap = cv2.VideoCapture(camera_id)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, int(cfg.camera.set_width))
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, int(cfg.camera.set_height))
     if not cap.isOpened():
-        raise RuntimeError(f"Unable to open camera id={cfg.camera.camera_id}")
+        raise RuntimeError(f"Unable to open camera id={camera_id}. Try running 'python -m src_open.tools.list_cameras' to find available cameras.")
 
+    actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     logger.info(
-        f"Camera opened (id={cfg.camera.camera_id}) at "
-        f"{cap.get(cv2.CAP_PROP_FRAME_WIDTH)}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT)}"
+        f"Camera opened (id={camera_id}) at {actual_width}x{actual_height}"
     )
 
     initialized = False
@@ -817,10 +900,24 @@ def main():
     auto_start_enabled = bool(cfg.tracking.get("auto_start_enabled", True))
     auto_start_iou = float(cfg.tracking.get("auto_start_iou", 0.45))
     auto_start_score = float(cfg.tracking.get("auto_start_score", detect_threshold))
+    
+    # Pose平滑参数
+    smooth_alpha = float(cfg.tracking.get("smooth_alpha", 0.0))
+    use_smoothing = smooth_alpha > 0.0
+    pose_smooth = None  # 用于存储上一帧的平滑pose
+    
+    # 灰度图模式（夜间红外模式）
+    grayscale = bool(cfg.tracking.get("grayscale", False))
+    if grayscale:
+        logger.info("Grayscale mode enabled (IR mode for night vision)")
+    
     frame_idx = 0
     guide_color = (255, 128, 0)
     guide_cache = {"bbox": None, "centers": None, "valid": None}
     obj_diameter = getattr(cfg.object, "diameter_in_meter", None)
+    
+    if use_smoothing:
+        logger.info(f"Pose smoothing enabled with alpha={smooth_alpha:.2f}")
 
     video_writer = None
     if cfg.tracking.output_video:
@@ -841,7 +938,16 @@ def main():
                 logger.warn("Failed to grab frame from camera; stopping")
                 break
 
-            frame_rgb, ori_camera_cpu = preprocess_frame(frame_bgr, cfg.camera, device)
+            # 如果是灰度图模式，可能需要特殊处理
+            # 某些摄像头在灰度模式下会直接返回单通道图像
+            if grayscale and len(frame_bgr.shape) == 2:
+                # 已经是单通道灰度图，直接使用
+                pass
+            elif grayscale and frame_bgr.shape[2] == 1:
+                # 单通道但维度是3维，需要reshape
+                frame_bgr = frame_bgr[:, :, 0]
+
+            frame_rgb, ori_camera_cpu = preprocess_frame(frame_bgr, cfg.camera, device, grayscale=grayscale)
             ori_camera = ori_camera_cpu.to(device)
 
             alignment_metric = None
@@ -938,6 +1044,9 @@ def main():
                             )
                             initialized = True
                             frame_idx = 0
+                            # 初始化pose_smooth
+                            if use_smoothing:
+                                pose_smooth = Pose(current_pose._data.clone())
                             logger.info(
                                 f"Auto-start tracking: view={det_idx} score={detect_result['score']:.3f} "
                                 f"IoU={alignment_metric:.3f}"
@@ -993,7 +1102,7 @@ def main():
             else:
                 # 追踪时使用预处理
                 (
-                    current_pose,
+                    new_pose,
                     fore_hist,
                     back_hist,
                     last_bbox,
@@ -1013,6 +1122,14 @@ def main():
                     device,
                     bbox_trim_ratio=bbox_trim_ratio,
                 )
+                
+                # 应用pose平滑
+                if use_smoothing:
+                    pose_smooth = smooth_pose(pose_smooth, new_pose, smooth_alpha)
+                    current_pose = pose_smooth
+                else:
+                    current_pose = new_pose
+                
                 # 在原始图像上绘制结果
                 overlay = draw_overlay(
                     frame_rgb,
@@ -1040,6 +1157,10 @@ def main():
                     est_translation = estimate_translation_from_bbox(ori_camera, guide_bbox, float(obj_diameter))
                     if est_translation is not None:
                         current_pose._data[..., 9:12] = est_translation
+
+                # 初始化pose_smooth
+                if use_smoothing:
+                    pose_smooth = Pose(current_pose._data.clone())
 
                 (
                     fore_hist,

@@ -1,0 +1,35 @@
+  File "<string>", line 18
+    print(f' * 60)
+                 ^
+SyntaxError: EOL while scanning string literal
+
+ERROR conda.cli.main_run:execute(125): `conda run python -c 
+import sys
+import warnings
+warnings.filterwarnings('ignore')
+sys.path.insert(0, '.')
+from omegaconf import OmegaConf
+from src_open.tools.train import train
+
+print('=' * 60)
+print('开始训练RBOT Cube灰度模型')
+print('=' * 60)
+
+cfg = OmegaConf.load('src_open/configs/train/train_RBOT_cube_gray.yaml')
+print(f'✓ 配置文件加载成功')
+print(f'  保存目录: {cfg.save_dir}')
+print(f'  数据集: {cfg.data.dataset_dir}')
+print(f'  训练对象: {cfg.data.train_obj_names}')
+print(f' * 60)
+print('开始训练...')
+print('')
+
+try:
+    train(cfg)
+except KeyboardInterrupt:
+    print('训练被用户中断')
+except Exception as e:
+    print(f'训练出错: {e}')
+    import traceback
+    traceback.print_exc()
+` failed. (See above for error)

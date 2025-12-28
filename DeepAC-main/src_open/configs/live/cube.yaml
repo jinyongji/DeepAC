@@ -1,0 +1,62 @@
+# @package _global_
+type: live_tracking
+
+save_dir: /home/jyj/Projects/DeepAC/workspace/live_cube
+
+model:
+  load_cfg: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/train_cfg.yml
+  load_model: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+
+object:
+  name: cube
+  pre_render_pkl: /media/jyj/JYJ/cube/cube/pre_render/cube.pkl
+  geometry_unit_in_meter: 0.001
+  diameter_in_meter: 0.056
+
+camera:
+  camera_id: 0
+  set_width: 1280
+  set_height: 720
+  fx: 1440.6351
+  fy: 1442.8019
+  cx: 642.3443
+  cy: 282.1061
+
+tracking:
+  # 图像预处理参数（提高分辨率以增加细节，减小裁剪边界）
+  crop_border: 5          # 减小裁剪边界，保留更多图像信息
+  resize: 384             # 提高分辨率，从320增加到384，增加细节
+  pad: 0
+  resize_by: max
+  
+  # 模板选择参数（大幅增加模板视图数量以提高稳定性）
+  template_top_k: 20      # 从12增加到20，提供更多候选模板
+  template_skip: 1
+  
+  # 追踪参数（进一步降低学习率以减少漂移，应对快速移动）
+  fore_learn_rate: 0.02   # 从0.03降低到0.02，应对快速移动时的漂移
+  back_learn_rate: 0.02   # 从0.03降低到0.02，应对快速移动时的漂移
+  bbox_trim_ratio: 0.08   # 稍微增加裁剪比例，更保守的bbox估计
+  
+  # Pose平滑参数（可选，用于减少抖动，但可能增加漂移风险）
+  # smooth_alpha: 0.0      # 设置为0禁用smoothing，避免累积误差
+  
+  # 初始化参数
+  init_depth: 0.45         # meters, approximate distance from camera to object for initialization
+  initial_view_index: 1280
+  initial_translation: [0.0, 0.0, 0.45]
+  
+  # 检测参数
+  detect_interval: 6
+  detect_threshold: 0.006
+  auto_start_enabled: true
+  auto_start_score: 0.008
+  auto_start_iou: 0.45
+  max_detect_views: 240
+  
+  # 显示和输出
+  show_window: true
+  output_video: true
+  output_size: [1280, 720]  # width, height for recorded video (与摄像头分辨率一致)
+  output_fps: 30
+

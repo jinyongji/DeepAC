@@ -1,0 +1,192 @@
+"""
+边缘提取模块
+实现梯度幅值计算和边缘强度评估
+"""
+import numpy as np
+import cv2
+import torch
+
+
+def compute_gradient_magnitude(image):
+    """
+    计算图像的梯度幅值
+
+    Args:
+        image: 输入图像，可以是numpy array (H, W) 或 torch.Tensor (1, 1, H, W)
+
+    Returns:
+        gradient_magnitude: 梯度幅值图，与输入格式相同
+    """
+    if isinstance(image, torch.Tensor):
+        # 转换为numpy进行处理
+        img_np = image.detach().squeeze().cpu().numpy() if image.is_cuda else image.detach().squeeze().numpy()
+        if img_np.dtype != np.uint8:
+            img_np = (img_np * 255).astype(np.uint8) if img_np.max() <= 1.0 else img_np.astype(np.uint8)
+    else:
+        img_np = image.copy()
+        if img_np.dtype != np.uint8:
+            img_np = (img_np * 255).astype(np.uint8) if img_np.max() <= 1.0 else img_np.astype(np.uint8)
+
+    # 使用Sobel算子计算梯度
+    grad_x = cv2.Sobel(img_np, cv2.CV_64F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(img_np, cv2.CV_64F, 0, 1, ksize=3)
+
+    # 计算梯度幅值
+    gradient_magnitude = np.sqrt(grad_x**2 + grad_y**2)
+
+    # 归一化到[0, 1]
+    if gradient_magnitude.max() > 0:
+        gradient_magnitude = gradient_magnitude / gradient_magnitude.max()
+    # 始终返回numpy数组，避免占用GPU内存
+    # 边缘强度图只需要在CPU上处理
+    return gradient_magnitude
+
+
+def compute_edge_strength(image, gradient_magnitude=None, enhance_dark_edges=True):
+    """
+    计算边缘强度评估
+
+    Args:
+        image: 输入图像，numpy array (H, W) 或 torch.Tensor
+        gradient_magnitude: 梯度幅值图（可选，如果不提供则计算）
+
+    Returns:
+        edge_strength: 边缘强度图，值范围[0, 1]，值越大表示边缘越强
+    """
+    if gradient_magnitude is None:
+        gradient_magnitude = compute_gradient_magnitude(image)
+
+    # 转换为numpy进行处理
+    if isinstance(gradient_magnitude, torch.Tensor):
+        grad_np = gradient_magnitude.detach().squeeze().cpu().numpy() if gradient_magnitude.is_cuda else gradient_magnitude.detach().squeeze().numpy()
+    else:
+        grad_np = gradient_magnitude.copy()
+
+    if isinstance(image, torch.Tensor):
+        img_np = image.detach().squeeze().cpu().numpy() if image.is_cuda else image.detach().squeeze().numpy()
+        if img_np.dtype != np.uint8:
+            img_np = (img_np * 255).astype(np.uint8) if img_np.max() <= 1.0 else img_np.astype(np.uint8)
+    else:
+        img_np = image.copy()
+        if img_np.dtype != np.uint8:
+            img_np = (img_np * 255).astype(np.uint8) if img_np.max() <= 1.0 else img_np.astype(np.uint8)
+
+    # 使用Canny边缘检测作为辅助
+        # 增强暗处边缘：使用自适应阈值
+        if enhance_dark_edges:
+            # 计算局部对比度增强
+            # 使用局部标准差来增强暗处边缘
+            kernel_size = 5
+            kernel = np.ones((kernel_size, kernel_size), np.float32) / (kernel_size * kernel_size)
+            local_mean = cv2.filter2D(img_np.astype(np.float32), -1, kernel)
+            local_std = np.sqrt(cv2.filter2D((img_np.astype(np.float32) - local_mean) ** 2, -1, kernel))
+
+            # 归一化局部标准差
+            if local_std.max() > 0:
+                local_std_norm = local_std / local_std.max()
+            else:
+                local_std_norm = local_std
+
+            # 对暗处区域（低亮度）增加权重
+            brightness = img_np.astype(np.float32) / 255.0
+            dark_mask = (brightness < 0.5).astype(np.float32)  # 暗处区域
+            dark_enhancement = 1.0 + dark_mask * 0.5  # 暗处增强50%
+
+            # 结合局部对比度和暗处增强
+            contrast_enhancement = 1.0 + local_std_norm * 0.3
+            enhancement = dark_enhancement * contrast_enhancement
+        else:
+            enhancement = np.ones_like(img_np, dtype=np.float32)
+
+        # 使用自适应Canny边缘检测（针对暗处降低阈值）
+        # 计算图像的自适应阈值
+        adaptive_thresh = cv2.adaptiveThreshold(
+            img_np, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+        # 使用较低的Canny阈值以检测暗处边缘
+        canny_low = 30  # 降低低阈值以检测更多边缘
+        canny_high = 100  # 降低高阈值
+        canny_edges = cv2.Canny(img_np, canny_low, canny_high)
+    canny_binary = (canny_edges > 0).astype(np.float32)
+
+    # 结合梯度幅值、Canny边缘和增强因子
+    edge_strength = grad_np * canny_binary * enhancement
+    # 应用高斯平滑减少噪声（特别是暗处边缘）
+    edge_strength = cv2.GaussianBlur(edge_strength, (5, 5), 1.0)
+    # 应用非极大值抑制（NMS）增强边缘
+    # 使用形态学操作增强边缘连续性
+    kernel = np.ones((3, 3), np.uint8)
+    edge_strength = cv2.dilate(edge_strength, kernel, iterations=1)
+    edge_strength = cv2.erode(edge_strength, kernel, iterations=1)
+    # 再次应用轻微的高斯平滑，进一步减少跳动
+    edge_strength = cv2.GaussianBlur(edge_strength, (3, 3), 0.5)
+
+    # 归一化到[0, 1]
+    if edge_strength.max() > 0:
+        edge_strength = edge_strength / edge_strength.max()
+
+    # 始终返回numpy数组，避免占用GPU内存
+    # 边缘强度图只需要在CPU上处理
+    return edge_strength
+
+
+def get_edge_strength_at_points(edge_strength, points_2d, valid_mask=None):
+    """
+    获取指定2D点的边缘强度值
+
+    Args:
+        edge_strength: 边缘强度图，numpy array (H, W) 或 torch.Tensor
+        points_2d: 2D点坐标，shape (N, 2) 或 (1, N, 2)
+        valid_mask: 有效性掩码，shape (N,) 或 (1, N)
+
+    Returns:
+        edge_values: 边缘强度值，shape (N,)
+    """
+    # 转换为numpy
+    if isinstance(edge_strength, torch.Tensor):
+        edge_np = edge_strength.detach().squeeze().cpu().numpy() if edge_strength.is_cuda else edge_strength.detach().squeeze().numpy()
+    else:
+        edge_np = edge_strength.copy()
+
+    if isinstance(points_2d, torch.Tensor):
+        points_np = points_2d.detach().squeeze().cpu().numpy() if points_2d.is_cuda else points_2d.detach().squeeze().numpy()
+    else:
+        points_np = points_2d.copy()
+
+    # 处理维度
+    if points_np.ndim == 3:
+        points_np = points_np[0]  # (1, N, 2) -> (N, 2)
+
+    # 处理valid_mask
+    if valid_mask is not None:
+        if isinstance(valid_mask, torch.Tensor):
+            valid_np = valid_mask.detach().squeeze().cpu().numpy() if valid_mask.is_cuda else valid_mask.detach().squeeze().numpy()
+        else:
+            valid_np = valid_mask.copy()
+        if valid_np.ndim > 1:
+            valid_np = valid_np[0] if valid_np.ndim == 2 else valid_np.flatten()
+        points_np = points_np[valid_np]
+
+    # 提取边缘强度值（使用双线性插值）
+    h, w = edge_np.shape
+    edge_values = np.zeros(len(points_np))
+
+    for i, (x, y) in enumerate(points_np):
+        x = np.clip(x, 0, w - 1)
+        y = np.clip(y, 0, h - 1)
+
+        # 双线性插值
+        x0, y0 = int(x), int(y)
+        x1, y1 = min(x0 + 1, w - 1), min(y0 + 1, h - 1)
+
+        fx = x - x0
+        fy = y - y0
+
+        edge_values[i] = (
+            edge_np[y0, x0] * (1 - fx) * (1 - fy) +
+            edge_np[y0, x1] * fx * (1 - fy) +
+            edge_np[y1, x0] * (1 - fx) * fy +
+            edge_np[y1, x1] * fx * fy
+        )
+
+    return edge_values

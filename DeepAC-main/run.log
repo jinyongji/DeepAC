@@ -1,0 +1,45 @@
+[2025-09-15 23:14:49,195][matplotlib.font_manager][INFO] - Failed to extract font properties from /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf: In FT2Font: Can not load face (unknown file format; error code 0x2)
+[2025-09-15 23:14:49,318][matplotlib.font_manager][INFO] - generated new fontManager
+[2025-09-15 23:33:23,303][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:15:19,491][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:17:29,436][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:19:03,296][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:21:04,090][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:22:51,141][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:26:51,402][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 14:35:47,596][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 18:40:37,555][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 19:24:44,537][DeepAC_Cube][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 19:27:47,895][DeepAC_Cube][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 19:27:47,925][DeepAC_Cube][INFO] - Initial translation (m): 0.05886193737387657
+[2025-11-10 19:29:25,720][DeepAC_Cube][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 19:29:25,758][DeepAC_Cube][INFO] - Initial translation (m): 0.05886193737387657
+[2025-11-10 19:29:25,964][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-10-19-29-23/initial_projection_check.jpg
+[2025-11-10 19:30:17,071][DeepAC_Cube][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-10 19:30:17,109][DeepAC_Cube][INFO] - Initial translation (m): 0.05886193737387657
+[2025-11-10 19:30:17,307][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-10-19-30-14/initial_projection_check.jpg
+[2025-11-10 19:30:17,347][DeepAC_Cube][INFO] - bbox2d first frame: [758.8359985351562, 206.56956481933594, 167.1956787109375, 175.27548217773438], img shape: [3, 224, 192], camera size: [192.0, 224.0]
+[2025-11-10 19:31:11,046][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-10-19-30-14
+[2025-11-11 19:52:03,758][DeepAC][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-11 19:58:49,278][DeepAC_Cube][INFO] - Loaded model weight from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[2025-11-11 19:58:49,841][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-19-58-47/initial_projection_check.jpg
+[2025-11-11 19:59:54,270][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-19-58-47
+[2025-11-11 20:09:22,561][DeepAC_Cube][INFO] - Initial translation (mm): [0.8272969722747803, 0.22060100734233856, 731.0731811523438]
+[2025-11-11 20:10:09,704][DeepAC_Cube][INFO] - Initial translation (mm): [0.8272969722747803, 0.22060100734233856, 731.0731811523438]
+[2025-11-11 20:10:09,900][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-20-10-07/initial_projection_check.jpg
+[2025-11-11 20:13:21,071][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-20-10-07
+[2025-11-11 20:25:51,325][DeepAC_Cube][INFO] - Initial translation (mm): [58.861934661865234, -39.225833892822266, 731.0731811523438]
+[2025-11-11 20:25:51,514][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-20-25-49/initial_projection_check.jpg
+[2025-11-11 20:26:47,075][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-20-25-49
+[2025-11-11 20:41:02,210][DeepAC_Cube][INFO] - Initial translation (mm): [58.861934661865234, -39.225833892822266, 731.0731811523438]
+[2025-11-11 20:41:02,366][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-20-41-00/initial_projection_check.jpg
+[2025-11-11 20:41:44,164][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-20-41-00
+[2025-11-11 21:06:23,032][DeepAC_Cube][INFO] - Initial translation (mm): [58.861934661865234, -39.225833892822266, 731.0731811523438]
+[2025-11-11 21:06:23,216][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-21-06-21/initial_projection_check.jpg
+[2025-11-11 21:07:29,526][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-21-06-21
+[2025-11-11 21:12:32,142][DeepAC_Cube][INFO] - Initial translation (mm): [58.861934661865234, -39.225833892822266, 731.0731811523438]
+[2025-11-11 21:12:32,308][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-21-12-30/initial_projection_check.jpg
+[2025-11-11 21:13:33,209][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-21-12-30
+[2025-11-11 21:17:34,717][DeepAC_Cube][INFO] - Initial translation (mm): [58.861934661865234, -39.225833892822266, 731.0731811523438]
+[2025-11-11 21:17:34,898][DeepAC_Cube][INFO] - Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-21-17-32/initial_projection_check.jpg
+[2025-11-11 21:18:35,123][DeepAC_Cube][INFO] - Tracking finished! Results saved to /home/jyj/Projects/DeepAC/workspace/demo_magic_cube/logs-2025-11-11-21-17-32

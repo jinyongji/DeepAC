@@ -55,6 +55,10 @@ def run_demo(cfg):
 
     fore_learn_rate = cfg.fore_learn_rate
     back_learn_rate = cfg.back_learn_rate
+    
+    # 获取可视化参数
+    obj_diameter = getattr(cfg, "obj_diameter", None)
+    visual_scale = getattr(cfg, "visual_scale", 1.0)
 
     data_dir = cfg.data_dir
     obj_name = cfg.obj_name
@@ -128,21 +132,107 @@ def run_demo(cfg):
 
     pose_file = open(save_dir / f"{obj_name}_pose.txt", "w")
 
-    first_img = read_image(img_lists[0])
+    # 支持IR图像（灰度图转RGB）
+    grayscale = getattr(cfg, "grayscale", False)
+    first_img = read_image(img_lists[0], grayscale=grayscale)
+    # 如果是灰度图，转换为RGB（复制3次通道）
+    if len(first_img.shape) == 2:
+        first_img = cv2.cvtColor(first_img, cv2.COLOR_GRAY2RGB)
+    elif first_img.shape[2] == 1:
+        first_img = cv2.cvtColor(first_img, cv2.COLOR_GRAY2RGB)
     fh, fw = first_img.shape[:2]
     intrinsic_first = torch.tensor([fw, fh, K[0, 0], K[1, 1], K[0, 2], K[1, 2]], dtype=torch.float32)
     cam_first = Camera(intrinsic_first).to(device)
 
-    idx0 = get_closest_template_view_index(init_pose, orientations)
-    initial_template = template_views[idx0, :, :3]
-    pts_cam = init_pose.transform(initial_template)
-    p2d, valid = cam_first.view2image(pts_cam)
     img_vis = first_img.copy()
-    for (x, y), v in zip(p2d.detach().cpu().numpy(), valid.detach().cpu().numpy()):
-        if v:
-            xi, yi = int(round(x)), int(round(y))
-            if 0 <= xi < fw and 0 <= yi < fh:
-                cv2.circle(img_vis, (xi, yi), 2, (0, 0, 255), -1)
+    
+    # 如果提供了obj_diameter，绘制立方体线框（更清晰的可视化）
+    obj_diameter = getattr(cfg, "obj_diameter", None)
+    visual_scale = getattr(cfg, "visual_scale", 1.0)
+    
+    if obj_diameter is not None:
+        # 绘制立方体线框
+        cube_size = obj_diameter * visual_scale
+        half_size = cube_size / 2.0
+        
+        # 立方体的8个顶点（物体坐标系）
+        cube_vertices_body = torch.tensor([
+            [-half_size, -half_size, -half_size],  # 0: 左下后（x-, y-, z-）
+            [ half_size, -half_size, -half_size],  # 1: 右下后（x+, y-, z-）
+            [ half_size,  half_size, -half_size],  # 2: 右上前（x+, y+, z-）
+            [-half_size,  half_size, -half_size],  # 3: 左上前（x-, y+, z-）
+            [-half_size, -half_size,  half_size],  # 4: 左下前（x-, y-, z+）
+            [ half_size, -half_size,  half_size],  # 5: 右下前（x+, y-, z+）
+            [ half_size,  half_size,  half_size],  # 6: 右上前（x+, y+, z+）
+            [-half_size,  half_size,  half_size],  # 7: 左上前（x-, y+, z+）
+        ], dtype=torch.float32, device=device)
+        
+        # 变换到相机坐标系
+        cube_vertices_cam = init_pose.transform(cube_vertices_body)
+        
+        # 处理batch维度（如果有）
+        if cube_vertices_cam.ndim == 3:
+            cube_vertices_cam = cube_vertices_cam[0]  # [1, 8, 3] -> [8, 3]
+        
+        # 投影到2D
+        cube_vertices_2d, cube_valid = cam_first.view2image(cube_vertices_cam)
+        
+        # 处理batch维度
+        if cube_vertices_2d.ndim == 3:
+            cube_vertices_2d_np = cube_vertices_2d[0].detach().cpu().numpy()
+            cube_valid_np = cube_valid[0].detach().cpu().numpy()
+        else:
+            cube_vertices_2d_np = cube_vertices_2d.detach().cpu().numpy()
+            cube_valid_np = cube_valid.detach().cpu().numpy()
+        
+        # 立方体的12条边
+        edges = [
+            (0, 1), (1, 2), (2, 3), (3, 0),  # 后表面
+            (4, 5), (5, 6), (6, 7), (7, 4),  # 前表面
+            (0, 4), (1, 5), (2, 6), (3, 7),  # 连接前后表面的边
+        ]
+        
+        # 绘制立方体的边（红色线条）
+        for edge in edges:
+            v1_idx, v2_idx = edge
+            if cube_valid_np[v1_idx] and cube_valid_np[v2_idx]:
+                pt1 = cube_vertices_2d_np[v1_idx]
+                pt2 = cube_vertices_2d_np[v2_idx]
+                x1, y1 = int(round(pt1[0])), int(round(pt1[1]))
+                x2, y2 = int(round(pt2[0])), int(round(pt2[1]))
+                if 0 <= x1 < fw and 0 <= y1 < fh and 0 <= x2 < fw and 0 <= y2 < fh:
+                    cv2.line(img_vis, (x1, y1), (x2, y2), (0, 0, 255), 2)  # 红色线条
+        
+        # 绘制立方体的顶点（红色圆圈）
+        for i, (pt, valid) in enumerate(zip(cube_vertices_2d_np, cube_valid_np)):
+            if valid:
+                xi, yi = int(round(pt[0])), int(round(pt[1]))
+                if 0 <= xi < fw and 0 <= yi < fh:
+                    cv2.circle(img_vis, (xi, yi), 4, (0, 0, 255), -1)  # 红色顶点
+        
+        if visual_scale != 1.0:
+            logger.info(f"Applied visual scale: {visual_scale:.2f}x (cube size: {cube_size:.3f}m)")
+    else:
+        # 如果没有提供obj_diameter，绘制轮廓点（原始方法）
+        idx0 = get_closest_template_view_index(init_pose, orientations)
+        initial_template = template_views[idx0, :, :3]
+        pts_cam = init_pose.transform(initial_template)
+        p2d, valid = cam_first.view2image(pts_cam)
+        
+        # 处理batch维度
+        p2d_np = p2d.detach().cpu().numpy()
+        valid_np = valid.detach().cpu().numpy()
+        if p2d_np.ndim == 3:
+            p2d_np = p2d_np[0]  # [1, N, 2] -> [N, 2]
+        if valid_np.ndim == 2:
+            valid_np = valid_np[0]  # [1, N] -> [N]
+        
+        for (x, y), v in zip(p2d_np, valid_np):
+            if v:
+                xi, yi = int(round(x)), int(round(y))
+                if 0 <= xi < fw and 0 <= yi < fh:
+                    cv2.circle(img_vis, (xi, yi), 2, (0, 0, 255), -1)
+    
     init_check_path = save_dir / "initial_projection_check.jpg"
     cv2.imwrite(str(init_check_path), img_vis)
     logger.info(f"Saved initial projection check image to {init_check_path}")
@@ -198,7 +288,12 @@ def run_demo(cfg):
         return pose.to(device_local)
 
     for i, img_path in enumerate(tqdm(img_lists, desc="Tracking")):
-        ori_image = read_image(img_path)
+        ori_image = read_image(img_path, grayscale=grayscale)
+        # 如果是灰度图，转换为RGB（复制3次通道）
+        if len(ori_image.shape) == 2:
+            ori_image = cv2.cvtColor(ori_image, cv2.COLOR_GRAY2RGB)
+        elif ori_image.shape[2] == 1:
+            ori_image = cv2.cvtColor(ori_image, cv2.COLOR_GRAY2RGB)
         h, w = ori_image.shape[:2]
         intrinsic_param = torch.tensor([w, h, K[0, 0], K[1, 1], K[0, 2], K[1, 2]], dtype=torch.float32)
         ori_camera_cpu = Camera(intrinsic_param)
@@ -223,6 +318,33 @@ def run_demo(cfg):
             _, _, centers_in_image, centers_valid, normals_in_image, f_dist, b_dist, _ = calculate_basic_line_data(
                 closest_template_views[None][:, 0], init_pose[None]._data, camera[None]._data, 1, 0
             )
+            # 确保有正确的batch维度 [B, N, ...]
+            # 去除多余的batch维度，然后确保至少有一个batch维度
+            while centers_in_image.ndim > 3:
+                centers_in_image = centers_in_image.squeeze(0)
+            if centers_in_image.ndim == 2:
+                centers_in_image = centers_in_image.unsqueeze(0)  # [N, 2] -> [1, N, 2]
+            
+            while centers_valid.ndim > 2:
+                centers_valid = centers_valid.squeeze(0)
+            if centers_valid.ndim == 1:
+                centers_valid = centers_valid.unsqueeze(0)  # [N] -> [1, N]
+            
+            while normals_in_image.ndim > 3:
+                normals_in_image = normals_in_image.squeeze(0)
+            if normals_in_image.ndim == 2:
+                normals_in_image = normals_in_image.unsqueeze(0)  # [N, 2] -> [1, N, 2]
+            
+            while f_dist.ndim > 2:
+                f_dist = f_dist.squeeze(0)
+            if f_dist.ndim == 1:
+                f_dist = f_dist.unsqueeze(0)  # [N] -> [1, N]
+            
+            while b_dist.ndim > 2:
+                b_dist = b_dist.squeeze(0)
+            if b_dist.ndim == 1:
+                b_dist = b_dist.unsqueeze(0)  # [N] -> [1, N]
+            
             total_fore_hist, total_back_hist = model.histogram.calculate_histogram(
                 img_tensor[None],
                 centers_in_image,
@@ -264,17 +386,79 @@ def run_demo(cfg):
         if video is not None:
             frame_vis = cv2.cvtColor(ori_image, cv2.COLOR_RGB2BGR)
             pose_for_vis = pose_for_output
-            idx_vis = get_closest_template_view_index(pose_for_vis, orientations)
-            template_view_vis = template_views[idx_vis]
-            projected = project_correspondences_line(template_view_vis[None], pose_for_vis, ori_camera)
-            centers = projected["centers_in_image"][0]
-            valid_mask = projected["centers_valid"][0].bool()
-            pts = centers[valid_mask].detach().cpu().numpy()
-            if pts.shape[0] >= 3:
+            
+            # 打印位姿信息用于调试（每10帧打印一次）
+            if i % 10 == 0:
+                t_vis = pose_for_vis.t
+                if t_vis.ndim > 1:
+                    t_vis = t_vis[0]
+                logger.info(f"Frame {start_index + i:04d}: pose t=({t_vis[0]:.3f}, {t_vis[1]:.3f}, {t_vis[2]:.3f})m")
+            
+            # 如果提供了obj_diameter，绘制立方体线框（与初始投影检查一致）
+            if obj_diameter is not None:
+                cube_size = obj_diameter * visual_scale
+                half_size = cube_size / 2.0
+                
+                # 立方体的8个顶点（物体坐标系）
+                cube_vertices_body = torch.tensor([
+                    [-half_size, -half_size, -half_size],
+                    [ half_size, -half_size, -half_size],
+                    [ half_size,  half_size, -half_size],
+                    [-half_size,  half_size, -half_size],
+                    [-half_size, -half_size,  half_size],
+                    [ half_size, -half_size,  half_size],
+                    [ half_size,  half_size,  half_size],
+                    [-half_size,  half_size,  half_size],
+                ], dtype=torch.float32, device=device)
+                
+                # 变换到相机坐标系
+                cube_vertices_cam = pose_for_vis.transform(cube_vertices_body)
+                if cube_vertices_cam.ndim == 3:
+                    cube_vertices_cam = cube_vertices_cam[0]
+                
+                # 投影到2D
+                cube_vertices_2d, cube_valid = ori_camera.view2image(cube_vertices_cam)
+                
+                # 处理batch维度
+                if cube_vertices_2d.ndim == 3:
+                    cube_vertices_2d_np = cube_vertices_2d[0].detach().cpu().numpy()
+                    cube_valid_np = cube_valid[0].detach().cpu().numpy()
+                else:
+                    cube_vertices_2d_np = cube_vertices_2d.detach().cpu().numpy()
+                    cube_valid_np = cube_valid.detach().cpu().numpy()
+                
+                # 立方体的12条边
+                edges = [
+                    (0, 1), (1, 2), (2, 3), (3, 0),
+                    (4, 5), (5, 6), (6, 7), (7, 4),
+                    (0, 4), (1, 5), (2, 6), (3, 7),
+                ]
+                
+                # 绘制立方体的边（绿色线条）
                 h_vis, w_vis = frame_vis.shape[:2]
-                pts = np.clip(pts, [0, 0], [w_vis - 1, h_vis - 1])
-                pts_int = pts.reshape(-1, 1, 2).astype(np.int32)
-                cv2.polylines(frame_vis, [pts_int], isClosed=True, color=(0, 255, 0), thickness=2)
+                for edge in edges:
+                    v1_idx, v2_idx = edge
+                    if cube_valid_np[v1_idx] and cube_valid_np[v2_idx]:
+                        pt1 = cube_vertices_2d_np[v1_idx]
+                        pt2 = cube_vertices_2d_np[v2_idx]
+                        x1, y1 = int(round(pt1[0])), int(round(pt1[1]))
+                        x2, y2 = int(round(pt2[0])), int(round(pt2[1]))
+                        if 0 <= x1 < w_vis and 0 <= y1 < h_vis and 0 <= x2 < w_vis and 0 <= y2 < h_vis:
+                            cv2.line(frame_vis, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            else:
+                # 如果没有提供obj_diameter，使用轮廓点（原始方法）
+                idx_vis = get_closest_template_view_index(pose_for_vis, orientations)
+                template_view_vis = template_views[idx_vis]
+                projected = project_correspondences_line(template_view_vis[None], pose_for_vis, ori_camera)
+                centers = projected["centers_in_image"][0]
+                valid_mask = projected["centers_valid"][0].bool()
+                pts = centers[valid_mask].detach().cpu().numpy()
+                if pts.shape[0] >= 3:
+                    h_vis, w_vis = frame_vis.shape[:2]
+                    pts = np.clip(pts, [0, 0], [w_vis - 1, h_vis - 1])
+                    pts_int = pts.reshape(-1, 1, 2).astype(np.int32)
+                    cv2.polylines(frame_vis, [pts_int], isClosed=True, color=(0, 255, 0), thickness=2)
+            
             text = f"frame {start_index + i:04d}"
             cv2.putText(frame_vis, text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
             video.write(cv2.resize(frame_vis, tuple(cfg.output_size)))
@@ -282,6 +466,33 @@ def run_demo(cfg):
         _, _, centers_in_image, centers_valid, normals_in_image, f_dist, b_dist, _ = calculate_basic_line_data(
             closest_template_view_hist[None], init_pose[None]._data, camera[None]._data, 1, 0
         )
+        # 确保有正确的batch维度 [B, N, ...]
+        # 去除多余的batch维度，然后确保至少有一个batch维度
+        while centers_in_image.ndim > 3:
+            centers_in_image = centers_in_image.squeeze(0)
+        if centers_in_image.ndim == 2:
+            centers_in_image = centers_in_image.unsqueeze(0)  # [N, 2] -> [1, N, 2]
+        
+        while centers_valid.ndim > 2:
+            centers_valid = centers_valid.squeeze(0)
+        if centers_valid.ndim == 1:
+            centers_valid = centers_valid.unsqueeze(0)  # [N] -> [1, N]
+        
+        while normals_in_image.ndim > 3:
+            normals_in_image = normals_in_image.squeeze(0)
+        if normals_in_image.ndim == 2:
+            normals_in_image = normals_in_image.unsqueeze(0)  # [N, 2] -> [1, N, 2]
+        
+        while f_dist.ndim > 2:
+            f_dist = f_dist.squeeze(0)
+        if f_dist.ndim == 1:
+            f_dist = f_dist.unsqueeze(0)  # [N] -> [1, N]
+        
+        while b_dist.ndim > 2:
+            b_dist = b_dist.squeeze(0)
+        if b_dist.ndim == 1:
+            b_dist = b_dist.unsqueeze(0)  # [N] -> [1, N]
+        
         fore_hist, back_hist = model.histogram.calculate_histogram(
             img_tensor[None],
             centers_in_image,
@@ -301,8 +512,13 @@ def run_demo(cfg):
 
 
 def main():
-    cfg_path = "src_open/configs/demo/demo_cube.yaml"
-    cfg = OmegaConf.load(cfg_path)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cfg", type=str, 
+                       default="src_open/configs/demo/demo_cube.yaml",
+                       help="配置文件路径")
+    args = parser.parse_args()
+    cfg = OmegaConf.load(args.cfg)
     run_demo(cfg)
 
 

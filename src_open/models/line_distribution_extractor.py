@@ -6,6 +6,7 @@ from .base_model import BaseModel
 # from timm.models.efficientnet_builder import efficientnet_init_weights
 from timm.models._efficientnet_builder import efficientnet_init_weights
 
+
 class LineDistributionExtractor(BaseModel):
     default_conf = {
         'in_channel': 16,  # [16, 8],
@@ -56,7 +57,7 @@ class LineDistributionExtractor(BaseModel):
         #         ))
 
         for scale in conf.scales:
-            inter_channel = scale*conf.in_channel
+            inter_channel = scale * conf.in_channel
 
             self.aggregates1.append(nn.Sequential(
                 nn.Conv2d(conf.in_channel, inter_channel * 2, kernel_size=3, padding=1),
@@ -120,7 +121,7 @@ class LineDistributionExtractor(BaseModel):
     #     x = x * softmax_temp
     #     # output_distributions = torch.exp(x) / torch.sum(torch.exp(x),dim=-1, keepdim=True)
     #     output_distributions = torch.softmax(x, dim=-1)
-        
+
     #     # import ipdb
     #     # ipdb.set_trace()
 
@@ -146,7 +147,7 @@ class LineDistributionExtractor(BaseModel):
         x = torch.cat((x, distributions), dim=1)
         _, C, _, _ = x.shape
         x = self.convs[ind](x)
-        softmax_temp = 1. / C**.5
+        softmax_temp = 1. / C ** .5
         output_distributions = torch.softmax(x * softmax_temp, dim=-1)
 
         return output_distributions.squeeze(1)

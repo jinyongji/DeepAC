@@ -1,0 +1,7 @@
+[deepac-live-realsense-ir][12-23 22:35:53]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-realsense-ir][12-23 22:35:53]INFO: Guide overlay uses template view index 1280
+[deepac-live-realsense-ir][12-23 22:35:53]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-realsense-ir][12-23 22:35:53]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_realsense_ir/live_realsense_ir_20251223_223553.avi
+[deepac-live-realsense-ir][12-23 22:35:53]INFO: Loading CPGA-IR enhancement model from /home/jyj/Projects/DeepAC/workspace/cpga_ir_models/best_model.pth
+[deepac-live-realsense-ir][12-23 22:35:54]INFO: CPGA-IR enhancement model loaded successfully
+[deepac-live-realsense-ir][12-23 22:35:54]INFO: CPGA model test: input range=[0.001, 1.000], output range=[0.508, 0.512]

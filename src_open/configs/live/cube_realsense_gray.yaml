@@ -1,0 +1,65 @@
+# @package _global_
+type: live_tracking
+
+save_dir: /home/jyj/Projects/DeepAC/workspace/live_cube_realsense_ir
+
+model:
+  load_cfg: /home/jyj/Projects/DeepAC/workspace/train_rbot_cube_gray/train_cfg.yml
+  load_model: /home/jyj/Projects/DeepAC/workspace/train_rbot_cube_gray/last.ckpt
+
+object:
+  name: cube
+  pre_render_pkl: /media/jyj/JYJ/cube/cube/pre_render/cube.pkl
+  geometry_unit_in_meter: 0.001
+  diameter_in_meter: 0.056
+
+camera:
+  # RealSense IR相机配置
+  ir_index: 1              # 1=左IR, 2=右IR
+  emitter_enabled: false   # 是否启用结构光发射器（默认False，避免IR图像中的光点）
+  set_width: 1280          # 请求的宽度（如果不可用，将使用最接近的可用分辨率）
+  set_height: 720          # 请求的高度
+  fps: 30                  # 请求的帧率
+  # 相机内参（如果RealSense无法自动获取，将使用这些值）
+  # 实际运行时会从RealSense相机自动获取内参，这些值作为备用
+  fx: 651.30
+  fy: 651.30
+  cx: 642.34
+  cy: 282.11
+
+tracking:
+  # 图像预处理参数（与RGB版本保持一致，只添加CLAHE增强）
+  crop_border: 7          # 与RGB版本保持一致
+  resize: 448            # 与RGB版本保持一致，提高分辨率以增加细节
+  pad: 0
+  resize_by: max
+  use_clahe: false         # 启用CLAHE对比度增强，提高IR图像边缘可见性（IR特有）
+  
+  # 模板选择参数（与RGB版本保持一致）
+  template_top_k: 25      # 与RGB版本保持一致
+  template_skip: 1
+  
+  # 追踪参数（与RGB版本保持一致）
+  fore_learn_rate: 0.013   # 与RGB版本保持一致
+  back_learn_rate: 0.013   # 与RGB版本保持一致
+  bbox_trim_ratio: 0.09   # 与RGB版本保持一致
+  
+  # 初始化参数
+  init_depth: 0.45         # meters, approximate distance from camera to object for initialization
+  initial_view_index: 1280  # 正面视角的模板索引
+  initial_translation: [0.0, 0.0, 0.45]
+  
+  # 检测参数（与RGB版本保持一致，只做轻微调整）
+  detect_interval: 5      # 与RGB版本保持一致
+  detect_threshold: 0.005  # 与RGB版本保持一致
+  auto_start_enabled: true
+  auto_start_score: 0.008  # 与RGB版本保持一致
+  auto_start_iou: 0.45    # 与RGB版本保持一致
+  max_detect_views: 240   # 与RGB版本保持一致
+  
+  # 显示和输出
+  show_window: true
+  output_video: true
+  output_size: [1280, 720]  # width, height for recorded video (与摄像头分辨率一致)
+  output_fps: 30
+

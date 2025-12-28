@@ -1,0 +1,43 @@
+[deepac-live-ir-innovative][12-23 23:52:14]INFO: Using device: cuda
+[deepac-live-ir-innovative][12-23 23:52:16]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-ir-innovative][12-23 23:52:16]INFO: Loaded 2562 template views
+[deepac-live-ir-innovative][12-23 23:52:16]INFO: Guide overlay uses template view index 1280
+[deepac-live-ir-innovative][12-23 23:52:17]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-ir-innovative][12-23 23:52:17]INFO: CLAHE enhancement enabled
+[deepac-live-ir-innovative][12-23 23:52:17]INFO: Temporal filter enabled (alpha=0.4, min=0.15, max=0.7)
+[deepac-live-ir-innovative][12-23 23:52:17]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/live_ir_innovative_20251223_235217.avi
+[deepac-live-ir-innovative][12-23 23:52:29]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-ir-innovative][12-23 23:52:29]INFO: Histogram initialized: distinction=0.000000, fore_mean=0.000031, back_mean=0.000031
+[deepac-live-ir-innovative][12-23 23:52:30]INFO: Frame 0: template_idx=1147 pose_t=(0.0020, 0.0008, 0.4506) pose_change_t=0.002178m pose_change_R=7.265deg
+[deepac-live-ir-innovative][12-23 23:52:30]INFO:   Avg contour confidence: 0.209
+[deepac-live-ir-innovative][12-23 23:52:33]INFO: Frame 10: template_idx=877 pose_t=(-0.0050, 0.0166, 0.4378) pose_change_t=0.009296m pose_change_R=12.818deg
+[deepac-live-ir-innovative][12-23 23:52:33]INFO:   Avg contour confidence: 0.072
+[deepac-live-ir-innovative][12-23 23:52:35]INFO: Frame 20: template_idx=795 pose_t=(-0.0142, 0.0215, 0.4272) pose_change_t=0.006661m pose_change_R=14.731deg
+[deepac-live-ir-innovative][12-23 23:52:35]INFO:   Avg contour confidence: 0.118
+[deepac-live-ir-innovative][12-23 23:52:37]INFO: Frame 30: template_idx=707 pose_t=(-0.0181, 0.0233, 0.4064) pose_change_t=0.008395m pose_change_R=15.986deg
+[deepac-live-ir-innovative][12-23 23:52:37]INFO:   Avg contour confidence: 0.062
+[deepac-live-ir-innovative][12-23 23:52:39]INFO: Frame 40: template_idx=633 pose_t=(-0.0084, 0.0464, 0.3992) pose_change_t=0.011804m pose_change_R=17.349deg
+[deepac-live-ir-innovative][12-23 23:52:39]INFO:   Avg contour confidence: 0.093
+[deepac-live-ir-innovative][12-23 23:52:41]INFO: Frame 50: template_idx=521 pose_t=(-0.0184, 0.0682, 0.3712) pose_change_t=0.011285m pose_change_R=20.015deg
+[deepac-live-ir-innovative][12-23 23:52:41]INFO:   Avg contour confidence: 0.059
+[deepac-live-ir-innovative][12-23 23:52:43]INFO: Frame 60: template_idx=469 pose_t=(-0.0304, 0.0769, 0.3481) pose_change_t=0.008835m pose_change_R=23.159deg
+[deepac-live-ir-innovative][12-23 23:52:43]INFO:   Avg contour confidence: 0.188
+[deepac-live-ir-innovative][12-23 23:52:45]INFO: Frame 70: template_idx=401 pose_t=(-0.0580, 0.0865, 0.3452) pose_change_t=0.011125m pose_change_R=24.507deg
+[deepac-live-ir-innovative][12-23 23:52:45]INFO:   Avg contour confidence: 0.055
+[deepac-live-ir-innovative][12-23 23:52:47]INFO: Frame 80: template_idx=401 pose_t=(-0.0790, 0.0875, 0.3443) pose_change_t=0.007874m pose_change_R=29.252deg
+[deepac-live-ir-innovative][12-23 23:52:47]INFO:   Avg contour confidence: 0.072
+[deepac-live-ir-innovative][12-23 23:52:49]INFO: Frame 90: template_idx=393 pose_t=(-0.0978, 0.0632, 0.3326) pose_change_t=0.008765m pose_change_R=33.290deg
+[deepac-live-ir-innovative][12-23 23:52:49]INFO:   Avg contour confidence: 0.079
+[deepac-live-ir-innovative][12-23 23:52:51]INFO: Frame 100: template_idx=585 pose_t=(-0.1028, 0.0585, 0.3497) pose_change_t=0.011504m pose_change_R=38.315deg
+[deepac-live-ir-innovative][12-23 23:52:51]INFO:   Avg contour confidence: 0.157
+[deepac-live-ir-innovative][12-23 23:52:53]INFO: Frame 110: template_idx=767 pose_t=(-0.1474, 0.0462, 0.3359) pose_change_t=0.017012m pose_change_R=40.330deg
+[deepac-live-ir-innovative][12-23 23:52:53]INFO:   Avg contour confidence: 0.148
+[deepac-live-ir-innovative][12-23 23:52:55]INFO: Frame 120: template_idx=905 pose_t=(-0.1693, 0.0385, 0.3239) pose_change_t=0.013590m pose_change_R=42.042deg
+[deepac-live-ir-innovative][12-23 23:52:55]INFO:   Avg contour confidence: 0.119
+[deepac-live-ir-innovative][12-23 23:52:57]INFO: Frame 130: template_idx=723 pose_t=(-0.1201, 0.0543, 0.3475) pose_change_t=0.019926m pose_change_R=44.316deg
+[deepac-live-ir-innovative][12-23 23:52:57]INFO:   Avg contour confidence: 0.143
+[deepac-live-ir-innovative][12-23 23:52:59]INFO: Frame 140: template_idx=597 pose_t=(-0.0744, 0.0356, 0.3162) pose_change_t=0.016853m pose_change_R=47.428deg
+[deepac-live-ir-innovative][12-23 23:52:59]INFO:   Avg contour confidence: 0.088
+[deepac-live-ir-innovative][12-23 23:53:00]INFO: Exiting...
+[deepac-live-ir-innovative][12-23 23:53:02]INFO: Video recording finished
+[deepac-live-ir-innovative][12-23 23:53:02]INFO: Live tracking finished

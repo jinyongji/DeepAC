@@ -1,0 +1,21 @@
+[deepac-live-ir-innovative][12-24 07:51:51]INFO: Using device: cuda
+[deepac-live-ir-innovative][12-24 07:51:54]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-ir-innovative][12-24 07:51:54]INFO: Loaded 2562 template views
+[deepac-live-ir-innovative][12-24 07:51:55]INFO: Guide overlay uses template view index 1280
+[deepac-live-ir-innovative][12-24 07:51:55]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-ir-innovative][12-24 07:51:55]INFO: CLAHE enhancement enabled
+[deepac-live-ir-innovative][12-24 07:51:55]INFO: Temporal filter enabled (alpha=0.3, min=0.1, max=0.6)
+[deepac-live-ir-innovative][12-24 07:51:55]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/live_ir_innovative_20251224_075155.avi
+[deepac-live-ir-innovative][12-24 07:52:07]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-ir-innovative][12-24 07:52:07]INFO: Histogram initialized: distinction=0.000000, fore_mean=0.000031, back_mean=0.000031
+[deepac-live-ir-innovative][12-24 07:52:09]INFO: Frame 0: template_idx=1280 pose_t=(0.0022, -0.0023, 0.3919) pose_change_t=0.058191m pose_change_R=3.539deg
+[deepac-live-ir-innovative][12-24 07:52:09]INFO:   Avg contour confidence: 0.280
+[deepac-live-ir-innovative][12-24 07:52:14]INFO: Frame 10: template_idx=1047 pose_t=(0.0107, -0.0073, 0.4082) pose_change_t=0.008811m pose_change_R=13.066deg
+[deepac-live-ir-innovative][12-24 07:52:14]INFO:   Avg contour confidence: 0.331
+[deepac-live-ir-innovative][12-24 07:52:17]INFO: Frame 20: template_idx=1469 pose_t=(0.0086, -0.0334, 0.4501) pose_change_t=0.019783m pose_change_R=26.165deg
+[deepac-live-ir-innovative][12-24 07:52:17]INFO:   Avg contour confidence: 0.302
+[deepac-live-ir-innovative][12-24 07:52:19]INFO: Frame 30: template_idx=1280 pose_t=(0.0310, -0.0225, 0.5636) pose_change_t=0.022674m pose_change_R=31.242deg
+[deepac-live-ir-innovative][12-24 07:52:19]INFO:   Avg contour confidence: 0.295
+[deepac-live-ir-innovative][12-24 07:52:19]INFO: Exiting...
+[deepac-live-ir-innovative][12-24 07:52:19]INFO: Video recording finished
+[deepac-live-ir-innovative][12-24 07:52:19]INFO: Live tracking finished

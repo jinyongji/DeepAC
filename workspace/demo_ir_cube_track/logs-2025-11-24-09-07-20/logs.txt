@@ -1,0 +1,2 @@
+[DeepAC_Cube][11-24 09:07:22]INFO: Initial translation (mm): [209.31065368652344, -39.5663948059082, 1220.0306396484375]
+[DeepAC_Cube][11-24 09:07:22]INFO: Saved initial projection check image to /home/jyj/Projects/DeepAC/workspace/demo_ir_cube_track/logs-2025-11-24-09-07-20/initial_projection_check.jpg

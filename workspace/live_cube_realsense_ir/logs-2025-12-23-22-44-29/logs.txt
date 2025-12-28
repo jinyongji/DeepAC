@@ -1,0 +1,16 @@
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: Guide overlay uses template view index 1280
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_realsense_ir/live_realsense_ir_20251223_224431.avi
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: Loading CPGA-IR enhancement model from /home/jyj/Projects/DeepAC/workspace/cpga_ir_models/best_model.pth
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: CPGA-IR enhancement model loaded successfully
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: CPGA model test: input range=[0.000, 1.000], output range=[0.495, 0.497]
+[deepac-live-realsense-ir][12-23 22:44:31]WARNING: CPGA output is nearly constant (range=0.001731), disabling CPGA
+[deepac-live-realsense-ir][12-23 22:44:31]INFO: CLAHE enhancement enabled
+[deepac-live-realsense-ir][12-23 22:44:46]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-realsense-ir][12-23 22:44:47]INFO: Frame 0: template_idx=1229 pose_t=(0.0031, -0.0052, 0.4283) pose_change_t=0.017916m pose_change_R=7.027deg
+[deepac-live-realsense-ir][12-23 22:44:49]INFO: Frame 10: template_idx=1063 pose_t=(-0.0151, -0.0135, 0.4176) pose_change_t=0.006089m pose_change_R=7.031deg
+[deepac-live-realsense-ir][12-23 22:44:51]INFO: Frame 20: template_idx=1183 pose_t=(-0.0361, -0.0178, 0.3693) pose_change_t=0.004546m pose_change_R=2.465deg
+[deepac-live-realsense-ir][12-23 22:44:53]INFO: Frame 30: template_idx=1280 pose_t=(-0.0642, -0.0217, 0.4420) pose_change_t=0.012708m pose_change_R=5.439deg
+[deepac-live-realsense-ir][12-23 22:44:55]INFO: Frame 40: template_idx=1280 pose_t=(-0.0874, -0.0228, 0.5201) pose_change_t=0.018328m pose_change_R=6.031deg
+[deepac-live-realsense-ir][12-23 22:44:58]INFO: Live tracking finished

@@ -1,0 +1,17 @@
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: Guide overlay uses template view index 1280
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_realsense_ir/live_realsense_ir_20251223_223650.avi
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: Loading CPGA-IR enhancement model from /home/jyj/Projects/DeepAC/workspace/cpga_ir_models/best_model.pth
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: CPGA-IR enhancement model loaded successfully
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: CPGA model test: input range=[0.001, 1.000], output range=[0.503, 0.505]
+[deepac-live-realsense-ir][12-23 22:36:50]WARNING: CPGA output is nearly constant (range=0.001952), disabling CPGA
+[deepac-live-realsense-ir][12-23 22:36:50]INFO: CLAHE enhancement enabled
+[deepac-live-realsense-ir][12-23 22:37:02]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-realsense-ir][12-23 22:37:03]INFO: Frame 0: template_idx=1229 pose_t=(-0.0021, -0.0019, 0.4182) pose_change_t=0.007412m pose_change_R=2.812deg
+[deepac-live-realsense-ir][12-23 22:37:05]INFO: Frame 10: template_idx=1057 pose_t=(-0.0072, 0.0142, 0.4164) pose_change_t=0.004352m pose_change_R=5.156deg
+[deepac-live-realsense-ir][12-23 22:37:07]INFO: Frame 20: template_idx=1227 pose_t=(-0.0315, 0.0161, 0.3917) pose_change_t=0.009735m pose_change_R=6.548deg
+[deepac-live-realsense-ir][12-23 22:37:09]INFO: Frame 30: template_idx=1280 pose_t=(-0.0635, 0.0006, 0.3969) pose_change_t=0.004893m pose_change_R=3.767deg
+[deepac-live-realsense-ir][12-23 22:37:11]INFO: Frame 40: template_idx=1401 pose_t=(-0.1073, -0.0073, 0.3925) pose_change_t=0.009033m pose_change_R=6.365deg
+[deepac-live-realsense-ir][12-23 22:37:13]INFO: Frame 50: template_idx=1183 pose_t=(-0.1504, 0.0103, 0.4380) pose_change_t=0.007205m pose_change_R=5.378deg
+[deepac-live-realsense-ir][12-23 22:37:15]INFO: Live tracking finished
