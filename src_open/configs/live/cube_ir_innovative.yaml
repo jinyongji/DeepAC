@@ -71,6 +71,6 @@ tracking:
 
   # 显示和输出
   show_window: true
-  output_video: false
-  output_size: [1280, 720]
-  output_fps: 30
+  output_video: true          # 启用视频输出
+  output_size: [1280, 720]    # 视频输出尺寸
+  output_fps: 30              # 视频帧率

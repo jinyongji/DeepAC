@@ -1,0 +1,78 @@
+# @package _global_
+type: live_tracking
+
+save_dir: /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative
+
+model:
+  load_cfg: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/train_cfg.yml
+  load_model: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+
+object:
+  name: cube
+  pre_render_pkl: /media/jyj/JYJ/cube/cube/pre_render/cube.pkl
+  geometry_unit_in_meter: 0.001
+  diameter_in_meter: 0.056
+
+camera:
+  # RealSense IR相机配置
+  ir_index: 1              # 1=左IR, 2=右IR
+  emitter_enabled: false   # 是否启用结构光发射器（默认False，避免IR图像中的光点）
+  set_width: 1280          # 请求的宽度
+  set_height: 720          # 请求的高度
+  fps: 30                  # 请求的帧率
+  # 相机内参（实际运行时会从RealSense相机自动获取）
+  fx: 651.30
+  fy: 651.30
+  cx: 642.34
+  cy: 282.11
+
+tracking:
+  # 图像预处理参数
+  crop_border: 8
+  resize: 448
+  pad: 0
+  resize_by: max
+
+  # 图像增强（跳过CPGA，使用CLAHE）
+  use_clahe: true
+  clahe_clip_limit: 4.0
+
+  # 边缘提取参数
+  edge_weight: 0.6         # 边缘强度权重（用于轮廓置信度估计）
+  depth_weight: 0.4         # 深度信息权重（用于轮廓置信度估计）
+
+  edge_confidence_tau: 5.0
+
+  # 模板选择参数
+  template_top_k: 35
+  template_skip: 1
+
+  # 追踪参数
+  fore_learn_rate: 0.015
+  back_learn_rate: 0.015
+  bbox_trim_ratio: 0.05
+
+  # 位姿扰动参数（帮助跳出局部最优）
+  pose_perturbation_scale: 0.002  # 平移扰动幅度（米）
+  rotation_perturbation_deg: 10.0  # 旋转扰动角度（度），围绕Z轴旋转
+
+  # 时间一致性滤波
+  use_temporal_filter: true      # 是否启用时间一致性滤波
+  temporal_filter_alpha: 0.3     # 平滑系数（0-1），降低到0.4使追踪更平滑，减少暗处边缘跳动
+  temporal_filter_min_alpha: 0.1  # 最小平滑系数（更平滑），用于低置信度情况
+  temporal_filter_max_alpha: 0.6   # 最大平滑系数（更响应），用于高置信度情况
+  # 追踪质量评估和自恢复
+  use_quality_assessment: false   # 是否启用追踪质量评估
+# 注意：自恢复机制阈值已调整，避免正常追踪时频繁触发
+  # 如果追踪正常但仍频繁触发恢复，可以设置 use_quality_assessment: false 禁用
+  # 初始化参数
+  init_depth: 0.45
+  initial_view_index: 1280
+  initial_translation: [0.0, 0.0, 0.45]
+  initial_rotation_z: 30.0
+
+  # 显示和输出
+  show_window: true
+  output_video: true          # 启用视频输出
+  output_size: [1280, 720]    # 视频输出尺寸
+  output_fps: 30              # 视频帧率

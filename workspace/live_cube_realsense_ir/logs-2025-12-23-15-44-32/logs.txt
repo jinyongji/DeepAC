@@ -1,6 +1,0 @@
-[deepac-live-realsense-ir][12-23 15:44:34]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
-[deepac-live-realsense-ir][12-23 15:44:34]INFO: Guide overlay uses template view index 1280
-[deepac-live-realsense-ir][12-23 15:44:34]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
-[deepac-live-realsense-ir][12-23 15:44:34]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_realsense_ir/live_realsense_ir_20251223_154434.avi
-[deepac-live-realsense-ir][12-23 15:44:47]INFO: Manual initialization requested (key 's') using guide pose directly
-[deepac-live-realsense-ir][12-23 15:45:11]INFO: Live tracking finished

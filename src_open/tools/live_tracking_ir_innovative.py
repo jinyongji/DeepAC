@@ -17,13 +17,12 @@ from omegaconf import OmegaConf
 import argparse
 import time
 from pathlib import Path
+
 from src_open.utils.lightening_utils import MyLightningLogger
 from src_open.utils.m3t_realsense_camera import M3TRealSenseIRCamera
 from src_open.utils.edge_extraction import compute_gradient_magnitude, compute_edge_strength, \
     get_edge_strength_at_points
 from src_open.utils.contour_confidence import estimate_contour_confidence
-from src_open.utils.temporal_filter import AdaptiveTemporalFilter
-from src_open.utils.tracking_quality import evaluate_tracking_quality, should_trigger_recovery
 from src_open.utils.geometry.wrappers import Pose, Camera
 from src_open.utils.utils import (
     get_bbox_from_p2d,
@@ -33,6 +32,7 @@ from src_open.utils.utils import (
 )
 from src_open.models.deep_ac import calculate_basic_line_data
 from src_open.models import get_model
+from src_open.utils.lightening_utils import convert_old_model, load_model_weight
 from src_open.tools.live_tracking import preprocess_frame, preprocess_image, draw_overlay, initialize_from_pose_with_preprocess
 
 
@@ -47,6 +47,7 @@ def load_template(pre_render_path, device):
     import pickle
     with open(pre_render_path, "rb") as f:
         pre = pickle.load(f)
+
     head = pre.get("head", {})
     num_sample = head.get("num_sample_contour_point") or head.get("num_sample")
     if num_sample is None:
@@ -76,10 +77,8 @@ def load_template(pre_render_path, device):
         raise RuntimeError("pre_render pkl missing `orientation_in_body` field")
     orientations = torch.from_numpy(np.array(orientations)).float()
 
-    template_views = torch.from_numpy(template_view).float().to(device)
-    orientations = orientations.to(device)
-
-    return template_views, orientations, num_sample
+    template_views = torch.from_numpy(template_view).float()
+    return template_views.to(device), orientations.to(device), num_sample
 
 
 def prepare_initial_pose(cfg, template_views, orientations, device):
@@ -158,15 +157,13 @@ def tracking_step_innovative(
     img_tensor, camera = preprocess_image(frame_rgb, bbox2d.detach().cpu().numpy().copy(), ori_camera_cpu, data_conf, device)
 
     # 标准DeepAC追踪步骤
-    # 确保current_pose没有batch维度（用于get_closest_k_template_view_index）
-    if isinstance(current_pose, Pose) and current_pose._data.ndim > 1:
-        current_pose_for_index = Pose(current_pose._data[0])
-    else:
-        current_pose_for_index = current_pose
+    # 使用多个模板视图
     template_top_k = track_cfg.get("template_top_k", 10)
-    template_skip = track_cfg.get("template_skip", 1)
+    template_skip = data_conf.get("skip_template_view", 1)
+    
+    # 获取最接近的k个模板视图索引
     indices_full = get_closest_k_template_view_index(
-        current_pose_for_index, orientations, template_top_k * template_skip
+        current_pose, orientations, template_top_k * template_skip
     )
     if indices_full.ndim > 1:
         indices_full = indices_full.view(-1)
@@ -190,8 +187,8 @@ def tracking_step_innovative(
         body2view_pose = current_pose
 
     data = {
-        "image": img_tensor[None],  # 添加batch维度,
-        "camera": camera,
+        "image": img_tensor[None],  # 添加batch维度
+        "camera": camera[None],  # 添加batch维度
         "body2view_pose": body2view_pose,
         "closest_template_views": closest_template_views[None],
         "closest_orientations_in_body": closest_orientations[None],
@@ -274,25 +271,24 @@ def main():
 
     # 设置设备
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_dir = Path(cfg.save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    logger = MyLightningLogger("deepac-live-ir-innovative", str(save_dir))
+    logger = MyLightningLogger("deepac-live-ir-innovative", cfg.save_dir)
     logger.info(f"Using device: {device}")
 
     # 加载模型
     train_cfg = OmegaConf.load(cfg.model.load_cfg)
-    model_cfg = train_cfg.models if "models" in train_cfg else train_cfg.model
+    model_cfg = train_cfg.models if "models" in train_cfg else train_cfg
     model = get_model(model_cfg.name)(model_cfg)
-
+    
     ckpt = torch.load(cfg.model.load_model, map_location="cpu")
-    from src_open.utils.lightening_utils import convert_old_model, load_model_weight
     if "pytorch-lightning_version" not in ckpt:
         ckpt = convert_old_model(ckpt)
     load_model_weight(model, ckpt, logger)
     model.to(device).eval()
-    data_conf = train_cfg.data
+    
     logger.info(f"Loaded weights from {cfg.model.load_model}")
+    
+    # 获取数据配置
+    data_conf = train_cfg.data
 
     # 加载模板
     template_views, orientations, num_sample = load_template(cfg.object.pre_render_pkl, device)
@@ -333,22 +329,16 @@ def main():
     fore_hist = None
     back_hist = None
     frame_idx = 0
-    # 边缘强度图的时间平滑（帧间平滑）
-    prev_edge_strength_map = None
-    edge_smoothing_alpha = 0.7  # 边缘强度图的时间平滑系数
-    # 初始化时间一致性滤波器
-    use_temporal_filter = cfg.tracking.get("use_temporal_filter", True)
-    temporal_filter = None
-    if use_temporal_filter:
-        filter_alpha = cfg.tracking.get("temporal_filter_alpha", 0.3)
-        min_alpha = cfg.tracking.get("temporal_filter_min_alpha", 0.1)
-        max_alpha = cfg.tracking.get("temporal_filter_max_alpha", 0.6)
-        temporal_filter = AdaptiveTemporalFilter(base_alpha=filter_alpha, min_alpha=min_alpha, max_alpha=max_alpha)
-        logger.info(f"Temporal filter enabled (alpha={filter_alpha}, min={min_alpha}, max={max_alpha})")
 
-    # 追踪质量评估
-    consecutive_bad_frames = 0
-    use_quality_assessment = cfg.tracking.get("use_quality_assessment", True)
+    # 创建输出目录
+    save_dir = Path(cfg.save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 初始化位姿保存文件
+    pose_file_path = save_dir / "pose.txt"
+    pose_file = open(pose_file_path, "w")
+    logger.info(f"Saving poses to {pose_file_path}")
+    
     # 初始化视频输出
     video_writer = None
     out_size = None
@@ -362,6 +352,15 @@ def main():
             out_size,
         )
         logger.info(f"Recording video to {video_path}")
+    
+    # FPS和时间统计
+    fps_start_time = time.time()
+    fps_frame_count = 0
+    inference_times = []
+    elapsed_time = 0.0  # 初始化elapsed_time
+    
+    # 获取几何单位（用于位姿保存）
+    geometry_unit = cfg.object.get("geometry_unit_in_meter", 0.001)
 
     # 主循环
     try:
@@ -381,11 +380,6 @@ def main():
 
             # 计算边缘强度图
             edge_strength_map = compute_edge_strength(ir_image)
-            # 对边缘强度图进行时间平滑（帧间平滑）
-            if prev_edge_strength_map is not None:
-                edge_strength_map = edge_smoothing_alpha * edge_strength_map + (
-                            1 - edge_smoothing_alpha) * prev_edge_strength_map
-            prev_edge_strength_map = edge_strength_map.copy()
 
             frame_rgb, ori_camera_cpu = preprocess_frame(frame_bgr, cfg.camera, device)
             ori_camera = ori_camera_cpu.to(device)
@@ -425,17 +419,10 @@ def main():
             else:
                 # 追踪阶段
                 bbox_trim_ratio = cfg.tracking.get("bbox_trim_ratio", 0.0)
-                # 保存追踪前的位姿和模板索引，用于检测位姿是否卡住
-                prev_pose_t = current_pose.t.clone()
-                prev_pose_R = current_pose.R.clone()
-                if prev_pose_t.ndim > 1:
-                    prev_pose_t = prev_pose_t[0]
-                if prev_pose_R.ndim > 2:
-                    prev_pose_R = prev_pose_R[0]
-                prev_template_idx = get_closest_template_view_index(current_pose, orientations)
-                if isinstance(prev_template_idx, torch.Tensor):
-                    prev_template_idx = prev_template_idx.item()
 
+                # 记录推理开始时间
+                inference_start = time.time()
+                
                 (
                     current_pose,
                     fore_hist,
@@ -460,141 +447,26 @@ def main():
                     depth_map=None,  # TODO: 添加深度图支持
                     bbox_trim_ratio=bbox_trim_ratio,
                 )
-                # 清理GPU缓存（避免内存累积）
-                if frame_idx % 10 == 0 and torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
-                # 检测位姿变化和模板索引变化
-                new_pose_t = current_pose.t.clone()
-                new_pose_R = current_pose.R.clone()
-                if new_pose_t.ndim > 1:
-                    new_pose_t = new_pose_t[0]
-                if new_pose_R.ndim > 2:
-                    new_pose_R = new_pose_R[0]
-                new_template_idx = get_closest_template_view_index(current_pose, orientations)
-                if isinstance(new_template_idx, torch.Tensor):
-                    new_template_idx = new_template_idx.item()
-
-                # 计算位姿变化
-                pose_change_t = torch.norm(new_pose_t - prev_pose_t).item()
-                relative_R = new_pose_R @ prev_pose_R.transpose(-2, -1)
-                trace_R = torch.trace(relative_R)
-                trace_R = torch.clamp(trace_R, -1.0, 3.0)
-                rotation_angle_deg = torch.acos((trace_R - 1.0) / 2.0) * 180.0 / 3.141592653589793
-                if torch.isnan(rotation_angle_deg):
-                    rotation_angle_deg = torch.tensor(0.0)
-                pose_change_R = rotation_angle_deg.item()
-                # 应用时间一致性滤波
-                if temporal_filter is not None:
-                    avg_conf = np.mean(contour_confidence) if contour_confidence is not None else None
-                    current_pose = temporal_filter.update(
-                        current_pose,
-                        pose_change_t=pose_change_t,
-                        pose_change_R=pose_change_R,
-                        contour_confidence=avg_conf,
-                    )
-                    # 滤波后重新计算template_idx（因为位姿已改变）
-                    new_template_idx = get_closest_template_view_index(current_pose, orientations)
-                    if isinstance(new_template_idx, torch.Tensor):
-                        new_template_idx = new_template_idx.item()
-                # 评估追踪质量
-                quality_score = 1.0
-                is_good_quality = True
-                quality_issues = []
-                if use_quality_assessment:
-                    fore_mean = torch.mean(fore_hist).item() if fore_hist is not None else None
-                    back_mean = torch.mean(back_hist).item() if back_hist is not None else None
-                    avg_conf = np.mean(contour_confidence) if contour_confidence is not None else None
-
-                    quality_score, is_good_quality, quality_issues = evaluate_tracking_quality(
-                        contour_confidence=avg_conf,
-                        pose_change_t=pose_change_t,
-                        pose_change_R=pose_change_R,
-                        template_idx=new_template_idx,
-                        fore_hist_mean=fore_mean,
-                        back_hist_mean=back_mean,
-                    )
-
-                    if is_good_quality:
-                        consecutive_bad_frames = 0
-                    else:
-                        consecutive_bad_frames += 1
-
-                # 每10帧输出一次调试信息
-                if frame_idx % 10 == 0:
-                    logger.info(
-                        f"Frame {frame_idx}: template_idx={new_template_idx} "
-                        f"pose_t=({new_pose_t[0]:.4f}, {new_pose_t[1]:.4f}, {new_pose_t[2]:.4f}) "
-                        f"pose_change_t={pose_change_t:.6f}m pose_change_R={pose_change_R:.3f}deg"
-                    )
-                    if contour_confidence is not None:
-                        avg_conf = np.mean(contour_confidence)
-                        logger.info(f"  Avg contour confidence: {avg_conf:.3f}")
-                        if use_quality_assessment:
-                            logger.info(
-                                f"  Quality score: {quality_score:.3f}, Good: {is_good_quality}, Issues: {quality_issues}")
-
-                        # 检查是否需要触发自恢复
-                    if use_quality_assessment and should_trigger_recovery(quality_score, consecutive_bad_frames):
-                        logger.warn(
-                            f"Frame {frame_idx}: Triggering recovery! "
-                            f"Quality score: {quality_score:.3f}, "
-                            f"Consecutive bad frames: {consecutive_bad_frames}, "
-                            f"Issues: {quality_issues}"
-                        )
-                        # 重置追踪状态
-                        initialized = False
-                        frame_idx = 0
-                        consecutive_bad_frames = 0
-                        if temporal_filter is not None:
-                            temporal_filter.reset()
-                        # 重置位姿到初始位姿
-                        current_pose = Pose(initial_pose._data.clone()).to(device)
-                        continue
-
-                # 检测是否在正面视角附近徘徊
-                is_near_front_view = 1200 <= new_template_idx <= 1400
-                pose_change_small = pose_change_t < 1e-5 and pose_change_R < 0.1
-
-                # 如果卡在正面视角附近，添加扰动
-                if (is_near_front_view and pose_change_t < 0.01 and pose_change_R < 2.0) or pose_change_small:
-                    # 添加旋转扰动（围绕Z轴），帮助跳出正面视角
-                    rotation_perturbation_deg = cfg.tracking.get("rotation_perturbation_deg", 10.0)
-                    if is_near_front_view:
-                        rotation_perturbation_deg *= 2.0  # 如果在正面视角附近，增加扰动幅度
-
-                    if rotation_perturbation_deg > 0:
-                        try:
-                            from scipy.spatial.transform import Rotation as R
-                            rotation_perturbation_rad = rotation_perturbation_deg * np.pi / 180.0
-                            z_axis = np.array([0, 0, 1])
-                            random_angle = np.random.uniform(-rotation_perturbation_rad, rotation_perturbation_rad)
-                            rotation_perturbation = R.from_rotvec(random_angle * z_axis)
-
-                            current_R = new_pose_R.detach().cpu().numpy()
-                            if current_R.ndim == 3:
-                                current_R = current_R[0]
-                            perturbed_R = rotation_perturbation.as_matrix() @ current_R
-                            perturbed_R_tensor = torch.from_numpy(perturbed_R).float().to(device)
-
-                            # 添加小的平移扰动
-                            perturbation_scale = cfg.tracking.get("pose_perturbation_scale", 0.002)
-                            if is_near_front_view:
-                                perturbation_scale *= 2.0
-                            perturbation = torch.randn(3, device=device, dtype=torch.float32) * perturbation_scale
-                            perturbed_t = new_pose_t + perturbation
-
-                            current_pose = Pose.from_Rt(perturbed_R_tensor.unsqueeze(0), perturbed_t.unsqueeze(0)).to(
-                                device)
-
-                            if frame_idx % 10 == 0:
-                                logger.warn(
-                                    f"Frame {frame_idx}: Adding pose perturbation "
-                                    f"(near_front={is_near_front_view}, rotation={rotation_perturbation_deg:.1f}deg) "
-                                    f"to escape local minimum"
-                                )
-                        except ImportError:
-                            logger.warn("scipy not available, skipping rotation perturbation")
+                
+                # 记录推理时间
+                inference_time = time.time() - inference_start
+                inference_times.append(inference_time)
+                
+                # 保存位姿到文件（格式：12个数字一行，R的9个元素 + t的3个元素）
+                if current_pose is not None:
+                    R = current_pose.R.detach().cpu().numpy()
+                    t = current_pose.t.detach().cpu().numpy() / geometry_unit  # 转换为mm
+                    
+                    # 处理batch维度
+                    if R.ndim == 3:
+                        R = R[0]
+                    if t.ndim == 2:
+                        t = t[0]
+                    
+                    # 格式：12个数字一行 [R11, R12, R13, R21, R22, R23, R31, R32, R33, t1, t2, t3]
+                    pose_flat = np.concatenate([R.flatten(), t.flatten()])
+                    pose_file.write(" ".join(f"{x:.8f}" for x in pose_flat) + "\n")
+                    pose_file.flush()  # 确保立即写入
 
                 # 绘制结果
                 overlay = draw_overlay(
@@ -605,36 +477,96 @@ def main():
                     color=(0, 255, 0),
                 )
 
-                # 显示轮廓置信度（如果可用）
-                if contour_confidence is not None:
-                    # 将last_valid转换为numpy数组用于索引
+                # 计算FPS
+                fps_frame_count += 1
+                elapsed_time = time.time() - fps_start_time
+                if elapsed_time > 0:
+                    current_fps = fps_frame_count / elapsed_time
+                    avg_inference_time = np.mean(inference_times[-30:]) if inference_times else 0.0  # 最近30帧的平均推理时间
+                else:
+                    current_fps = 0.0
+                    avg_inference_time = 0.0
+
+                # 显示信息
+                info_y = 48
+                if contour_confidence is not None and last_valid is not None:
+                    # 转换last_valid为numpy数组
                     if isinstance(last_valid, torch.Tensor):
                         last_valid_np = last_valid.detach().cpu().numpy()
                     else:
-                        last_valid_np = last_valid
+                        last_valid_np = np.array(last_valid)
                     avg_confidence = np.mean(contour_confidence[last_valid_np]) if last_valid_np.any() else 0.0
-                cv2.putText(
+                    cv2.putText(
                         overlay,
-                        f"Avg Confidence: {avg_confidence:.3f}",
-                        (16, 48),
+                        f"Confidence: {avg_confidence:.3f}",
+                        (16, info_y),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7,
                         (0, 255, 255),
                         2,
                     )
+                    info_y += 30
+                
+                cv2.putText(
+                    overlay,
+                    f"FPS: {current_fps:.1f}",
+                    (16, info_y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
+                info_y += 30
+                
+                cv2.putText(
+                    overlay,
+                    f"Inference: {avg_inference_time*1000:.1f}ms",
+                    (16, info_y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
+                info_y += 30
+                
+                cv2.putText(
+                    overlay,
+                    f"Frame: {frame_idx}",
+                    (16, info_y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (255, 255, 255),
+                    2,
+                )
+                
+                # 获取模板索引（用于显示）
+                template_idx = get_closest_template_view_index(current_pose, orientations)
+                if isinstance(template_idx, torch.Tensor):
+                    template_idx = template_idx.item()
+                cv2.putText(
+                    overlay,
+                    f"Template: {template_idx}",
+                    (16, info_y + 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (255, 255, 255),
+                    2,
+                )
+
+                # 写入视频（如果启用）
+                if video_writer is not None and out_size is not None:
+                    # 调整overlay大小以匹配视频输出尺寸
+                    overlay_h, overlay_w = overlay.shape[:2]
+                    if (overlay_w, overlay_h) != out_size:
+                        overlay_resized = cv2.resize(overlay, out_size)
+                    else:
+                        overlay_resized = overlay
+                    video_writer.write(overlay_resized)
 
             frame_idx += 1
-            # 写入视频（如果启用）
-            if video_writer is not None and out_size is not None:
-                # 确保overlay尺寸匹配视频输出尺寸
-                overlay_h, overlay_w = overlay.shape[:2]
-                if (overlay_w, overlay_h) != out_size:
-                    overlay_resized = cv2.resize(overlay, out_size)
-                else:
-                    overlay_resized = overlay
-                video_writer.write(overlay_resized)
+
             key = -1
-            if cfg.tracking.show_window:
+            if cfg.tracking.get("show_window", True):
                 cv2.imshow("DeepAC Live (Innovative IR)", overlay)
                 key = cv2.waitKey(1) & 0xFF
             else:
@@ -644,39 +576,32 @@ def main():
                 logger.info("Manual initialization requested (key 's') using guide pose directly")
                 current_pose = Pose(initial_pose._data.clone()).to(device)
 
-                # 初始化直方图
-                data_lines_init = project_correspondences_line(initial_template, current_pose, ori_camera)
-                (
-                    _,
-                    _,
-                    centers_init,
-                    valid_init,
-                    normals_init,
-                    fg_dist_init,
-                    bg_dist_init,
-                    _,
-                ) = calculate_basic_line_data(initial_template, current_pose._data, ori_camera._data, 1, 0)
-
-                frame_rgb_init, camera_init = preprocess_image(
-                    frame_bgr, get_bbox_from_p2d(data_lines_init["centers_in_image"][0]).cpu().numpy(), ori_camera_cpu,
-                    data_conf, device
+                # 使用正确的初始化函数
+                fore_hist, back_hist, last_bbox, last_centers, last_valid = initialize_from_pose_with_preprocess(
+                    frame_rgb,
+                    ori_camera_cpu,
+                    current_pose,
+                    template_views,
+                    orientations,
+                    model,
+                    device,
+                    data_conf,
+                    bbox_trim_ratio=0.0,
                 )
 
-                fore_hist, back_hist = model.histogram.calculate_histogram(
-                    frame_rgb_init[None],
-                    centers_init,
-                    valid_init,
-                    normals_init,
-                    fg_dist_init,
-                    bg_dist_init,
-                    True,
-                )
+                # 检查初始化结果
+                fore_mean = torch.mean(fore_hist).item()
+                back_mean = torch.mean(back_hist).item()
+                hist_distinction = (fore_mean - back_mean) / (fore_mean + back_mean + 1e-7)
+                logger.info(f"Histogram initialized: distinction={hist_distinction:.6f}, fore_mean={fore_mean:.6f}, back_mean={back_mean:.6f}")
+                
 
                 initialized = True
                 frame_idx = 0
-                consecutive_bad_frames = 0
-                if temporal_filter is not None:
-                    temporal_filter.reset()
+                fps_start_time = time.time()  # 重置FPS计时
+                fps_frame_count = 0
+                inference_times = []
+                elapsed_time = 0.0  # 重置elapsed_time
 
             if key == 27 or key == ord("q"):
                 logger.info("Exiting...")
@@ -685,12 +610,29 @@ def main():
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
     finally:
-        realsense_camera.stop()
+        # 关闭位姿文件
+        if pose_file is not None:
+            pose_file.close()
+            logger.info(f"Saved {frame_idx} poses to {pose_file_path}")
+        
+        # 关闭视频写入器
         if video_writer is not None:
             video_writer.release()
             logger.info("Video recording finished")
-        if cfg.tracking.show_window:
-            cv2.destroyAllWindows()
+        
+        # 输出统计信息
+        if inference_times:
+            avg_inference = np.mean(inference_times)
+            min_inference = np.min(inference_times)
+            max_inference = np.max(inference_times)
+            logger.info(f"Inference time stats: avg={avg_inference*1000:.2f}ms, min={min_inference*1000:.2f}ms, max={max_inference*1000:.2f}ms")
+        
+        if fps_frame_count > 0 and elapsed_time > 0:
+            avg_fps = fps_frame_count / elapsed_time
+            logger.info(f"Average FPS: {avg_fps:.2f}")
+        
+        realsense_camera.stop()
+        cv2.destroyAllWindows()
         logger.info("Live tracking finished")
 
 

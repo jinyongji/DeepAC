@@ -33,12 +33,12 @@ def estimate_contour_confidence(
     """
     # 转换为numpy
     if isinstance(edge_strength_map, torch.Tensor):
-        edge_np = edge_strength_map.squeeze().cpu().numpy() if edge_strength_map.is_cuda else edge_strength_map.squeeze().numpy()
+        edge_np = edge_strength_map.detach().squeeze().cpu().numpy() if edge_strength_map.is_cuda else edge_strength_map.detach().squeeze().numpy()
     else:
         edge_np = edge_strength_map.copy()
     
     if isinstance(points_2d, torch.Tensor):
-        points_np = points_2d.squeeze().cpu().numpy() if points_2d.is_cuda else points_2d.squeeze().numpy()
+        points_np = points_2d.detach().squeeze().cpu().numpy() if points_2d.is_cuda else points_2d.detach().squeeze().numpy()
     else:
         points_np = points_2d.copy()
     
@@ -49,7 +49,7 @@ def estimate_contour_confidence(
     # 处理valid_mask
     if valid_mask is not None:
         if isinstance(valid_mask, torch.Tensor):
-            valid_np = valid_mask.squeeze().cpu().numpy() if valid_mask.is_cuda else valid_mask.squeeze().numpy()
+            valid_np = valid_mask.detach().squeeze().cpu().numpy() if valid_mask.is_cuda else valid_mask.detach().squeeze().numpy()
         else:
             valid_np = valid_mask.copy()
         if valid_np.ndim > 1:
@@ -84,7 +84,7 @@ def estimate_contour_confidence(
     # 如果有深度信息，结合深度置信度
     if depth_map is not None:
         if isinstance(depth_map, torch.Tensor):
-            depth_np = depth_map.squeeze().cpu().numpy() if depth_map.is_cuda else depth_map.squeeze().numpy()
+            depth_np = depth_map.detach().squeeze().cpu().numpy() if depth_map.is_cuda else depth_map.detach().squeeze().numpy()
         else:
             depth_np = depth_map.copy()
         
@@ -111,7 +111,7 @@ def estimate_contour_confidence(
             
             if depth_confidence_map is not None:
                 if isinstance(depth_confidence_map, torch.Tensor):
-                    depth_conf_np = depth_confidence_map.squeeze().cpu().numpy() if depth_confidence_map.is_cuda else depth_confidence_map.squeeze().numpy()
+                    depth_conf_np = depth_confidence_map.detach().squeeze().cpu().numpy() if depth_confidence_map.is_cuda else depth_confidence_map.detach().squeeze().numpy()
                 else:
                     depth_conf_np = depth_confidence_map.copy()
                 
