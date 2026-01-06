@@ -1,0 +1,19 @@
+[deepac-live-ir-innovative][12-31 18:06:09]INFO: Using device: cuda
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Loaded 2562 template views
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Guide overlay uses template view index 1280
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Updated camera intrinsics in config with RealSense actual values
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: CLAHE enhancement enabled
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Saving poses to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/pose.txt
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Recording video to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/live_ir_innovative_20251231_180611.avi
+[deepac-live-ir-innovative][12-31 18:06:11]INFO: Performance profiling: enabled
+[deepac-live-ir-innovative][12-31 18:06:18]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-ir-innovative][12-31 18:06:19]INFO: Histogram initialized: distinction=0.000000, fore_mean=0.000031, back_mean=0.000031
+[deepac-live-ir-innovative][12-31 18:06:37]INFO: Exiting...
+[deepac-live-ir-innovative][12-31 18:06:37]INFO: Saved 153 poses to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/pose.txt
+[deepac-live-ir-innovative][12-31 18:06:37]INFO: Video recording finished
+[deepac-live-ir-innovative][12-31 18:06:37]INFO: Inference time stats: avg=83.22ms, min=73.47ms, max=748.74ms
+[deepac-live-ir-innovative][12-31 18:06:37]INFO: Average FPS: 8.08
+[deepac-live-ir-innovative][12-31 18:06:37]INFO: Performance profile saved to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/performance_profile.txt
+[deepac-live-ir-innovative][12-31 18:06:40]INFO: Live tracking finished

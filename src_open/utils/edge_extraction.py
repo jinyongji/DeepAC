@@ -171,3 +171,10 @@ def get_edge_strength_at_points(edge_strength, points_2d, valid_mask=None):
     return edge_values
 
 
+
+
+
+
+
+
+

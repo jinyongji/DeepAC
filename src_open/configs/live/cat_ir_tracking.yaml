@@ -1,0 +1,70 @@
+# @package _global_
+type: live_tracking
+
+save_dir: /home/jyj/Projects/DeepAC/workspace/live_cat_ir_innovative
+
+model:
+  load_cfg: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/train_cfg.yml
+  load_model: /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+
+object:
+  name: cat
+  pre_render_pkl: /media/jyj/JYJ/cat/pre_render/cat.pkl
+  geometry_unit_in_meter: 0.001
+  diameter_in_meter: 0.169487  # cat模型的直径约17厘米（从中心到最远顶点的距离 × 2）
+
+camera:
+  # IR相机配置（cat数据集使用的内参）
+  ir_index: 1              # 1=左IR, 2=右IR
+  emitter_enabled: false   # 是否启用结构光发射器
+  set_width: 640           # 图像宽度
+  set_height: 480          # 图像高度
+  fps: 30                  # 帧率
+  # cat数据集使用的IR相机内参（640x480）
+  fx: 390.029
+  fy: 390.029
+  cx: 320.854
+  cy: 241.846
+
+tracking:
+  # 图像预处理参数
+  crop_border: 8
+  resize: 448
+  pad: 0
+  resize_by: max
+
+  # 图像增强（跳过CPGA，使用CLAHE）
+  use_clahe: true
+  clahe_clip_limit: 4.0
+
+  # 边缘提取参数
+  edge_weight: 0.6         # 边缘强度权重（用于轮廓置信度估计）
+  depth_weight: 0.4         # 深度信息权重（用于轮廓置信度估计）
+
+  edge_confidence_tau: 5.0
+  use_fast_edge_confidence: true  # 使用快速模式（跳过Laplacian计算，节省约70%时间）
+
+  # 性能分析
+  enable_profiling: true  # 启用性能分析
+
+  # 模板选择参数
+  template_top_k: 30
+  template_skip: 1
+
+  # 追踪参数
+  fore_learn_rate: 0.015
+  back_learn_rate: 0.015
+  bbox_trim_ratio: 0.05
+
+  # 初始化参数
+  init_depth: 0.45
+  initial_view_index: 1280
+  initial_translation: [0.0, 0.0, 0.45]
+  initial_rotation_z: 0.0
+
+  # 显示和输出
+  show_window: true
+  output_video: false          # 评估时不需要视频输出
+  output_size: [640, 480]     # 视频输出尺寸
+  output_fps: 30              # 视频帧率
+

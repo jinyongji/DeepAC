@@ -1,0 +1,67 @@
+Performance Profiling Results
+============================================================
+Total frames: 335
+
+
+tracking_step:
+  Average: 83.50 ms
+  Min:     73.21 ms
+  Max:     752.53 ms
+  Std:     60.79 ms
+  Count:   147
+
+edge_extraction:
+  Average: 22.94 ms
+  Min:     21.50 ms
+  Max:     34.41 ms
+  Std:     1.41 ms
+  Count:   147
+
+video_writing:
+  Average: 6.47 ms
+  Min:     4.93 ms
+  Max:     10.16 ms
+  Std:     0.75 ms
+  Count:   147
+
+edge_confidence:
+  Average: 3.24 ms
+  Min:     2.72 ms
+  Max:     4.85 ms
+  Std:     0.40 ms
+  Count:   147
+
+clahe_enhancement:
+  Average: 1.92 ms
+  Min:     0.82 ms
+  Max:     8.45 ms
+  Std:     1.14 ms
+  Count:   335
+
+drawing:
+  Average: 0.88 ms
+  Min:     0.70 ms
+  Max:     1.70 ms
+  Std:     0.19 ms
+  Count:   147
+
+preprocess_frame:
+  Average: 0.88 ms
+  Min:     0.51 ms
+  Max:     5.60 ms
+  Std:     0.57 ms
+  Count:   335
+
+color_conversion:
+  Average: 0.34 ms
+  Min:     0.17 ms
+  Max:     5.19 ms
+  Std:     0.44 ms
+  Count:   335
+
+pose_saving:
+  Average: 0.14 ms
+  Min:     0.12 ms
+  Max:     0.33 ms
+  Std:     0.02 ms
+  Count:   147

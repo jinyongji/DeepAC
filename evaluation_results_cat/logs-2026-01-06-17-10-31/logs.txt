@@ -1,0 +1,65 @@
+[ir_tracking_eval][01-06 17:10:31]INFO: Using device: cuda
+[ir_tracking_eval][01-06 17:10:31]INFO: Image directory: /media/jyj/JYJ/cat/frame/IR
+[ir_tracking_eval][01-06 17:10:31]INFO: GT pose file: /media/jyj/JYJ/cat/frame/IR/pose_ir.txt
+[ir_tracking_eval][01-06 17:10:31]INFO: Loading GT poses...
+[ir_tracking_eval][01-06 17:10:31]INFO: Loaded 386 GT poses
+[ir_tracking_eval][01-06 17:10:31]INFO: Loading model...
+[ir_tracking_eval][01-06 17:10:33]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[ir_tracking_eval][01-06 17:10:33]INFO: Loading templates...
+[ir_tracking_eval][01-06 17:10:33]INFO: Loaded 2562 template views
+[ir_tracking_eval][01-06 17:10:33]INFO: Using provided GT camera intrinsics: fx=390.03, fy=390.03, cx=320.85, cy=241.85
+[ir_tracking_eval][01-06 17:10:33]INFO: Using first frame GT pose as initialization
+[ir_tracking_eval][01-06 17:10:33]INFO: CLAHE enhancement enabled
+[ir_tracking_eval][01-06 17:10:33]INFO: Extracting model points from template file...
+[ir_tracking_eval][01-06 17:10:34]INFO: Extracted 510847 unique model points from template
+[ir_tracking_eval][01-06 17:10:34]INFO: Processing frames 0 to 385 (386 frames)
+[ir_tracking_eval][01-06 17:10:34]INFO: Frame 0 - Image and intrinsics check:
+[ir_tracking_eval][01-06 17:10:34]INFO:   Image size: 640x480
+[ir_tracking_eval][01-06 17:10:34]INFO:   Camera intrinsics: fx=390.03, fy=390.03, cx=320.85, cy=241.85
+[ir_tracking_eval][01-06 17:10:34]INFO:   Camera intrinsics match image size
+[ir_tracking_eval][01-06 17:10:34]INFO: Frame 0 - Image info:
+[ir_tracking_eval][01-06 17:10:34]INFO:   Actual image size: 640x480
+[ir_tracking_eval][01-06 17:10:34]INFO:   Config camera: fx=390.03, fy=390.03, cx=320.85, cy=241.85
+[ir_tracking_eval][01-06 17:10:34]INFO:   Camera image size: 640x480
+[ir_tracking_eval][01-06 17:10:34]INFO: Initialized tracking state for frame 0
+[ir_tracking_eval][01-06 17:10:35]INFO: Frame 0 - Pose comparison:
+[ir_tracking_eval][01-06 17:10:35]INFO:   Predicted: t=(0.0578, 0.0027, 0.4693)
+[ir_tracking_eval][01-06 17:10:35]INFO:   GT:        t=(0.0586, 0.0017, 0.4768)
+[ir_tracking_eval][01-06 17:10:35]INFO:   Translation diff: (-0.0008, 0.0009, -0.0075)
+[ir_tracking_eval][01-06 17:10:35]INFO:   Rotation diff (trace): 2.9940
+[ir_tracking_eval][01-06 17:10:35]INFO:   Predicted rotation matrix R:
+[ir_tracking_eval][01-06 17:10:35]INFO:     [0.9985, -0.0496, 0.0240]
+[ir_tracking_eval][01-06 17:10:35]INFO:     [0.0498, 0.9987, -0.0100]
+[ir_tracking_eval][01-06 17:10:35]INFO:     [-0.0235, 0.0111, 0.9997]
+[ir_tracking_eval][01-06 17:10:35]INFO:   GT rotation matrix R:
+[ir_tracking_eval][01-06 17:10:35]INFO:     [0.9982, -0.0502, -0.0317]
+[ir_tracking_eval][01-06 17:10:35]INFO:     [0.0481, 0.9968, -0.0634]
+[ir_tracking_eval][01-06 17:10:35]INFO:     [0.0348, 0.0618, 0.9975]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Predicted R z-axis (camera forward): [0.0240, -0.0100, 0.9997]
+[ir_tracking_eval][01-06 17:10:35]INFO:   GT R z-axis (camera forward): [-0.0317, -0.0634, 0.9975]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Projected center diff: (0.1, 0.5)
+[ir_tracking_eval][01-06 17:10:35]INFO: Frame 0 - Predicted pose:
+[ir_tracking_eval][01-06 17:10:35]INFO:   Valid points: 200/200
+[ir_tracking_eval][01-06 17:10:35]INFO:   Template 3D points (body frame) range:
+[ir_tracking_eval][01-06 17:10:35]INFO:     x=[-0.0639, 0.0635], y=[-0.0588, 0.0586], z=[-0.0290, 0.0210]
+[ir_tracking_eval][01-06 17:10:35]INFO:   3D points in camera frame range:
+[ir_tracking_eval][01-06 17:10:35]INFO:     x=[-0.0088, 0.1230], y=[-0.0553, 0.0625], z=[0.4404, 0.4915]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Points in front of camera (z>0): 200/200
+[ir_tracking_eval][01-06 17:10:35]INFO:   All centers range: x=[313.3, 419.4], y=[194.6, 297.1]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Valid centers range: x=[313.3, 419.4], y=[194.6, 297.1]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Valid centers std: x=32.078, y=30.609
+[ir_tracking_eval][01-06 17:10:35]INFO:   Bbox: [366.3822  245.86145 106.12805 102.42653]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Camera intrinsics: fx=390.03, fy=390.03, cx=320.85, cy=241.85
+[ir_tracking_eval][01-06 17:10:35]INFO:   Failed to get camera intrinsics: 'Camera' object has no attribute 'width'
+[ir_tracking_eval][01-06 17:10:35]INFO: Frame 0 - GT pose:
+[ir_tracking_eval][01-06 17:10:35]INFO:   Valid points: 200/200
+[ir_tracking_eval][01-06 17:10:35]INFO:   Template 3D points (body frame) range:
+[ir_tracking_eval][01-06 17:10:35]INFO:     x=[-0.0639, 0.0630], y=[-0.0587, 0.0583], z=[-0.0302, 0.0218]
+[ir_tracking_eval][01-06 17:10:35]INFO:   3D points in camera frame range:
+[ir_tracking_eval][01-06 17:10:35]INFO:     x=[-0.0070, 0.1222], y=[-0.0555, 0.0628], z=[0.4506, 0.5003]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Valid centers range: x=[314.9, 417.2], y=[195.0, 296.1]
+[ir_tracking_eval][01-06 17:10:35]INFO:   Valid centers std: x=31.414, y=30.345
+[ir_tracking_eval][01-06 17:10:35]INFO:   Bbox: [366.05414 245.526   102.29111 101.05437]
+[ir_tracking_eval][01-06 17:11:39]INFO: Evaluation results saved to evaluation_results_cat/evaluation_results.json
+[ir_tracking_eval][01-06 17:11:39]INFO: Predicted poses saved to evaluation_results_cat/predicted_poses.json
+[ir_tracking_eval][01-06 17:11:39]INFO: Visualization images saved to evaluation_results_cat/visualizations

@@ -1,0 +1,17 @@
+[deepac-live-ir-innovative][12-30 21:09:19]INFO: Using device: cuda
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: Loaded weights from /home/jyj/Projects/DeepAC/workspace/train_bop_deepac/logs-2024-01-08-15-52-47/model_last.ckpt
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: Loaded 2562 template views
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: Guide overlay uses template view index 1280
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: RealSense IR camera initialized: 1280x720, fx=651.30, fy=651.30, cx=650.38, cy=364.58
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: Updated camera intrinsics in config with RealSense actual values
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: CLAHE enhancement enabled
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: Saving poses to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/pose.txt
+[deepac-live-ir-innovative][12-30 21:09:21]INFO: Performance profiling: enabled
+[deepac-live-ir-innovative][12-30 21:09:30]INFO: Manual initialization requested (key 's') using guide pose directly
+[deepac-live-ir-innovative][12-30 21:09:30]INFO: Histogram initialized: distinction=0.000000, fore_mean=0.000031, back_mean=0.000031
+[deepac-live-ir-innovative][12-30 21:10:03]INFO: Exiting...
+[deepac-live-ir-innovative][12-30 21:10:03]INFO: Saved 279 poses to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/pose.txt
+[deepac-live-ir-innovative][12-30 21:10:03]INFO: Inference time stats: avg=81.30ms, min=73.09ms, max=742.69ms
+[deepac-live-ir-innovative][12-30 21:10:03]INFO: Average FPS: 8.50
+[deepac-live-ir-innovative][12-30 21:10:03]INFO: Performance profile saved to /home/jyj/Projects/DeepAC/workspace/live_cube_ir_innovative/performance_profile.txt
+[deepac-live-ir-innovative][12-30 21:10:04]INFO: Live tracking finished

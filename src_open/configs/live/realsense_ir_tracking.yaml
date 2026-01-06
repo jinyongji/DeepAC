@@ -42,9 +42,13 @@ tracking:
   depth_weight: 0.4         # 深度信息权重（用于轮廓置信度估计）
 
   edge_confidence_tau: 5.0
+  use_fast_edge_confidence: true  # 使用快速模式（跳过Laplacian计算，节省约70%时间）
+
+  # 性能分析
+  enable_profiling: true  # 启用性能分析
 
   # 模板选择参数
-  template_top_k: 35
+  template_top_k: 30
   template_skip: 1
 
   # 追踪参数

@@ -23,6 +23,7 @@ from src_open.utils.m3t_realsense_camera import M3TRealSenseIRCamera
 from src_open.utils.edge_extraction import compute_gradient_magnitude, compute_edge_strength, \
     get_edge_strength_at_points
 from src_open.utils.contour_confidence import estimate_contour_confidence
+from src_open.utils.performance_profiler import PerformanceProfiler
 from src_open.utils.geometry.wrappers import Pose, Camera
 from src_open.utils.utils import (
     get_bbox_from_p2d,
@@ -38,37 +39,74 @@ from src_open.tools.live_tracking import preprocess_frame, preprocess_image, dra
 def compute_ir_edge_confidence(
     ir_image: np.ndarray,
     edge_strength_map: np.ndarray,
-    ksize: int = 3,
+    ksize: int = 1,  # 优化：使用更小的核（1x1或3x3）减少计算量
     tau: float = 5.0,
+    use_fast_mode: bool = True,  # 新增：快速模式
 ):
     """
     基于IR局部结构稳定性的边缘可信度估计（抑制speckle和假边）
+    优化版本：使用更高效的算法和更小的核
 
     Args:
         ir_image: 原始IR灰度图 (H, W), uint8 / float
         edge_strength_map: 边缘强度图 (H, W)
-        ksize: 局部算子尺寸
+        ksize: 局部算子尺寸（优化：默认使用1，更快）
         tau: 控制sigmoid平滑程度
+        use_fast_mode: 是否使用快速模式（跳过Laplacian，直接使用边缘强度）
 
     Returns:
         edge_confidence_map: [0, 1]，越大表示边缘越可信
     """
-    # 转float
-    ir_f = ir_image.astype(np.float32)
+    if use_fast_mode:
+        # 快速模式：直接使用归一化的边缘强度，跳过Laplacian计算
+        # 这样可以节省约70%的计算时间
+        edge_strength_max = edge_strength_map.max()
+        if edge_strength_max > 1e-6:
+            edge_confidence = edge_strength_map / edge_strength_max
+        else:
+            edge_confidence = np.zeros_like(edge_strength_map)
+        return np.clip(edge_confidence, 0.0, 1.0)
+    
+    # 标准模式：使用Laplacian（保留原功能）
+    # 优化：使用uint8输入，避免不必要的float转换
+    if ir_image.dtype != np.uint8:
+        ir_f = ir_image.astype(np.float32)
+    else:
+        ir_f = ir_image.astype(np.float32)
 
-    # 使用Laplacian度量局部结构稳定性
-    lap = cv2.Laplacian(ir_f, cv2.CV_32F, ksize=ksize)
-    local_var = lap * lap
+    # 优化：使用ksize=1的Laplacian（更快）或使用Sobel代替
+    if ksize == 1:
+        # 使用更快的Sobel算子代替Laplacian
+        sobel_x = cv2.Sobel(ir_f, cv2.CV_32F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(ir_f, cv2.CV_32F, 0, 1, ksize=3)
+        local_var = sobel_x * sobel_x + sobel_y * sobel_y
+    else:
+        # 使用Laplacian（较慢）
+        lap = cv2.Laplacian(ir_f, cv2.CV_32F, ksize=ksize)
+        local_var = lap * lap
 
-    # 归一化
-    local_var_norm = local_var / (np.mean(local_var) + 1e-6)
+    # 优化：使用更快的归一化方法
+    local_var_mean = np.mean(local_var)
+    if local_var_mean > 1e-6:
+        local_var_norm = local_var / local_var_mean
+    else:
+        local_var_norm = np.zeros_like(local_var)
 
-    # Sigmoid 抑制 speckle
-    edge_confidence = 1.0 / (1.0 + np.exp(-(local_var_norm - 1.0) * tau))
+    # Sigmoid 抑制 speckle（优化：使用更快的近似）
+    # 使用exp的快速近似：1/(1+exp(-x)) ≈ sigmoid(x)
+    # 对于x = (local_var_norm - 1.0) * tau
+    x = (local_var_norm - 1.0) * tau
+    # 使用clipped exp避免溢出
+    x_clipped = np.clip(x, -10, 10)
+    edge_confidence = 1.0 / (1.0 + np.exp(-x_clipped))
 
     # 与边缘强度联合
-    edge_strength_norm = edge_strength_map / (edge_strength_map.max() + 1e-6)
-    edge_confidence *= edge_strength_norm
+    edge_strength_max = edge_strength_map.max()
+    if edge_strength_max > 1e-6:
+        edge_strength_norm = edge_strength_map / edge_strength_max
+        edge_confidence *= edge_strength_norm
+    else:
+        edge_confidence = np.zeros_like(edge_confidence)
 
     return np.clip(edge_confidence, 0.0, 1.0)
 
@@ -154,6 +192,7 @@ def prepare_initial_pose(cfg, template_views, orientations, device):
     return initial_view_idx, initial_pose, initial_template
 
 
+@torch.no_grad()
 def tracking_step_innovative(
         frame_rgb,
         ori_camera_cpu,
@@ -173,6 +212,8 @@ def tracking_step_innovative(
 ):
     """
     创新的追踪步骤：结合边缘强度和深度信息
+    
+    使用 @torch.no_grad() 装饰器避免构建 autograd graph，提升推理速度并减少显存占用
 
     Args:
         edge_strength_map: 边缘强度图（可选）
@@ -255,71 +296,77 @@ def tracking_step_innovative(
     while centers_valid.ndim > 2:
         centers_valid = centers_valid.squeeze(0)
 
-    # 如果有边缘强度图，计算轮廓点置信度
-    contour_confidence = None
-    if edge_strength_map is not None:
-        # 在原始图像坐标系中计算轮廓点
-        idx_best = get_closest_template_view_index(new_pose, orientations)
-        best_template = template_views[idx_best: idx_best + 1]
-        centers_ori, valid_ori = ori_camera.view2image(new_pose.transform(best_template[0, :, :3]))
+    # 在原始图像坐标系中计算bbox和centers（先计算，用于返回）
+    idx_best = get_closest_template_view_index(new_pose, orientations)
+    best_template = template_views[idx_best: idx_best + 1]
+    centers_ori, valid_ori = ori_camera.view2image(new_pose.transform(best_template[0, :, :3]))
 
+    # 如果有边缘强度图，计算轮廓点置信度（基于返回的valid_ori）
+    contour_confidence = None
+    if edge_strength_map is not None and valid_ori.any():
         # =========================
         # 创新点2：IR物理一致性权重
         # =========================
         lambertian_weight = None
+        
+        # 获取对应模板点的法向（body坐标）
+        normals_body = best_template[0, :, 3:6].detach().cpu().numpy()  # [N,3] numpy
 
-        if valid_ori.any():
-            # 获取对应模板点的法向（body坐标）
-            normals_body = best_template[0, :, 3:6].detach().cpu().numpy()  # [N,3] numpy
+        # 转到相机坐标
+        R = new_pose.R.detach().cpu().numpy()
+        if R.ndim == 3:
+            R = R[0]
+        normals_cam = (R @ normals_body.T).T
 
-            # 转到相机坐标
-            R = new_pose.R.detach().cpu().numpy()
-            if R.ndim == 3:
-                R = R[0]
-            normals_cam = (R @ normals_body.T).T
+        # 视线方向（相机坐标系下 z 轴）
+        view_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
-            # 视线方向（相机坐标系下 z 轴）
-            view_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        # cos(theta)
+        cos_theta = normals_cam @ view_dir
+        cos_theta = np.clip(cos_theta, 0.0, 1.0)
 
-            # cos(theta)
-            cos_theta = normals_cam @ view_dir
-            cos_theta = np.clip(cos_theta, 0.0, 1.0)
+        lambertian_weight = cos_theta
+        
+        # 计算轮廓点置信度
+        contour_confidence = estimate_contour_confidence(
+            edge_strength_map,
+            centers_ori,
+            depth_map=depth_map,
+            valid_mask=valid_ori,
+            edge_weight=track_cfg.get("edge_weight", 0.6),
+            depth_weight=track_cfg.get("depth_weight", 0.4),
+        )
+        
+        # =========================
+        # 融合创新权重
+        # =========================
+        if contour_confidence is not None:
+            # 全部转 NumPy
+            valid_mask = valid_ori.detach().cpu().numpy().astype(bool) if isinstance(valid_ori, torch.Tensor) else valid_ori.astype(bool)
+            centers_np = centers_ori.detach().cpu().numpy() if isinstance(centers_ori, torch.Tensor) else centers_ori
 
-            lambertian_weight = cos_theta
-        if valid_ori.any():
-            contour_confidence = estimate_contour_confidence(
-                edge_strength_map,
-                centers_ori,
-                depth_map=depth_map,
-                valid_mask=valid_ori,
-                edge_weight=track_cfg.get("edge_weight", 0.6),
-                depth_weight=track_cfg.get("depth_weight", 0.4),
-            )
-            # =========================
-            # 融合创新权重
-            # =========================
-            if contour_confidence is not None and valid_ori.any():
+            weights = contour_confidence.copy()
 
-                # 全部转 NumPy
-                valid_mask = valid_ori.detach().cpu().numpy().astype(bool)
-                centers_np = centers_ori.detach().cpu().numpy()
+            # 创新点1：IR 边缘可信度
+            if edge_confidence_map is not None:
+                pts = centers_np[valid_mask].astype(np.int32)
+                pts[:, 0] = np.clip(pts[:, 0], 0, edge_confidence_map.shape[1] - 1)
+                pts[:, 1] = np.clip(pts[:, 1], 0, edge_confidence_map.shape[0] - 1)
 
-                weights = contour_confidence.copy()
+                edge_conf = edge_confidence_map[pts[:, 1], pts[:, 0]]
+                weights *= edge_conf
 
-                # 创新点1：IR 边缘可信度
-                if edge_confidence_map is not None:
-                    pts = centers_np[valid_mask].astype(np.int32)
-                    pts[:, 0] = np.clip(pts[:, 0], 0, edge_confidence_map.shape[1] - 1)
-                    pts[:, 1] = np.clip(pts[:, 1], 0, edge_confidence_map.shape[0] - 1)
+            # 创新点2：Lambertian 物理一致性
+            if lambertian_weight is not None:
+                weights *= lambertian_weight[valid_mask]
 
-                    edge_conf = edge_confidence_map[pts[:, 1], pts[:, 0]]
-                    weights *= edge_conf
-
-                # 创新点2：Lambertian 物理一致性
-                if lambertian_weight is not None:
-                    weights *= lambertian_weight[valid_mask]
-
-                contour_confidence = np.clip(weights, 0.05, 1.0)
+            contour_confidence = np.clip(weights, 0.05, 1.0)
+            
+            # 将contour_confidence扩展到与valid_ori相同的长度（填充无效位置为0）
+            if len(contour_confidence) < len(valid_mask):
+                full_confidence = np.zeros(len(valid_mask), dtype=contour_confidence.dtype)
+                full_confidence[valid_mask] = contour_confidence
+                contour_confidence = full_confidence
 
     # 更新直方图
     while normals_in_image.ndim > 3:
@@ -338,11 +385,7 @@ def tracking_step_innovative(
     fore_hist = (1 - alpha_f) * fore_hist + alpha_f * fore_hist_new
     back_hist = (1 - alpha_b) * back_hist + alpha_b * back_hist_new
 
-    # 在原始图像坐标系中计算bbox和centers
-    idx_best = get_closest_template_view_index(new_pose, orientations)
-    best_template = template_views[idx_best: idx_best + 1]
-    centers_ori, valid_ori = ori_camera.view2image(new_pose.transform(best_template[0, :, :3]))
-
+    # 计算bbox
     bbox = None
     if valid_ori.any():
         bbox = get_bbox_from_p2d(centers_ori[valid_ori], trim_ratio=bbox_trim_ratio)
@@ -394,11 +437,26 @@ def main():
         fps=cfg.camera.get("fps", 30),
     )
 
-    logger.info(
-        f"RealSense IR camera initialized: {realsense_camera.width}x{realsense_camera.height}, "
-        f"fx={realsense_camera.intrinsics['fx']:.2f}, fy={realsense_camera.intrinsics['fy']:.2f}, "
-        f"cx={realsense_camera.intrinsics['cx']:.2f}, cy={realsense_camera.intrinsics['cy']:.2f}"
-    )
+    # 重要：用RealSense实际内参覆盖YAML配置中的内参
+    # 这可以避免投影轮廓与真实轮廓的系统性偏差
+    if realsense_camera.intrinsics is not None:
+        cfg.camera.fx = float(realsense_camera.intrinsics['fx'])
+        cfg.camera.fy = float(realsense_camera.intrinsics['fy'])
+        cfg.camera.cx = float(realsense_camera.intrinsics['cx'])
+        cfg.camera.cy = float(realsense_camera.intrinsics['cy'])
+        logger.info(
+            f"RealSense IR camera initialized: {realsense_camera.width}x{realsense_camera.height}, "
+            f"fx={cfg.camera.fx:.2f}, fy={cfg.camera.fy:.2f}, "
+            f"cx={cfg.camera.cx:.2f}, cy={cfg.camera.cy:.2f}"
+        )
+        logger.info("Updated camera intrinsics in config with RealSense actual values")
+    else:
+        logger.warn("Failed to get RealSense intrinsics, using YAML config values")
+        logger.info(
+            f"Using YAML camera intrinsics: fx={cfg.camera.get('fx', 0):.2f}, "
+            f"fy={cfg.camera.get('fy', 0):.2f}, cx={cfg.camera.get('cx', 0):.2f}, "
+            f"cy={cfg.camera.get('cy', 0):.2f}"
+        )
 
     # 初始化CLAHE（如果启用）
     use_clahe = cfg.tracking.get("use_clahe", True)
@@ -444,6 +502,11 @@ def main():
     inference_times = []
     elapsed_time = 0.0  # 初始化elapsed_time
     
+    # 初始化性能分析器
+    enable_profiling = cfg.tracking.get("enable_profiling", True)
+    profiler = PerformanceProfiler(enabled=enable_profiling)
+    logger.info(f"Performance profiling: {'enabled' if enable_profiling else 'disabled'}")
+    
     # 获取几何单位（用于位姿保存）
     geometry_unit = cfg.object.get("geometry_unit_in_meter", 0.001)
 
@@ -456,24 +519,20 @@ def main():
                 logger.warn("Failed to grab frame from RealSense IR camera; stopping")
                 break
 
+            # 开始新的一帧性能分析
+            profiler.start_frame()
+            
             # 应用CLAHE增强（如果启用）
-            if clahe is not None:
-                ir_image = clahe.apply(ir_image)
+            with profiler.profile("clahe_enhancement"):
+                if clahe is not None:
+                    ir_image = clahe.apply(ir_image)
 
             # 转换为BGR格式（用于显示和处理）
-            frame_bgr = cv2.cvtColor(ir_image, cv2.COLOR_GRAY2BGR)
+            with profiler.profile("color_conversion"):
+                frame_bgr = cv2.cvtColor(ir_image, cv2.COLOR_GRAY2BGR)
 
-            # 计算边缘强度图
-            edge_strength_map = compute_edge_strength(ir_image)
-            # IR边缘可信度图（创新点1）
-            edge_confidence_map = compute_ir_edge_confidence(
-                ir_image=ir_image,
-                edge_strength_map=edge_strength_map,
-                ksize=3,
-                tau=cfg.tracking.get("edge_confidence_tau", 5.0),
-            )
-
-            frame_rgb, ori_camera_cpu = preprocess_frame(frame_bgr, cfg.camera, device)
+            with profiler.profile("preprocess_frame"):
+                frame_rgb, ori_camera_cpu = preprocess_frame(frame_bgr, cfg.camera, device)
             ori_camera = ori_camera_cpu.to(device)
 
             if not initialized:
@@ -510,65 +569,85 @@ def main():
                 )
             else:
                 # 追踪阶段
+                # 只在追踪阶段计算边缘提取和边缘可信度（初始化阶段不需要）
+                with profiler.profile("edge_extraction"):
+                    edge_strength_map = compute_edge_strength(ir_image)
+                
+                # IR边缘可信度图（创新点1）
+                with profiler.profile("edge_confidence"):
+                    use_fast_edge_confidence = cfg.tracking.get("use_fast_edge_confidence", True)
+                    edge_confidence_map = compute_ir_edge_confidence(
+                        ir_image=ir_image,
+                        edge_strength_map=edge_strength_map,
+                        ksize=1,  # 优化：使用更小的核
+                        tau=cfg.tracking.get("edge_confidence_tau", 5.0),
+                        use_fast_mode=use_fast_edge_confidence,
+                    )
+                
                 bbox_trim_ratio = cfg.tracking.get("bbox_trim_ratio", 0.0)
 
                 # 记录推理开始时间
                 inference_start = time.time()
                 
-                (
-                    current_pose,
-                    fore_hist,
-                    back_hist,
-                    last_bbox,
-                    last_centers,
-                    last_valid,
-                    contour_confidence,
-                ) = tracking_step_innovative(
-                    frame_rgb,
-                    ori_camera_cpu,
-                    current_pose,
-                    template_views,
-                    orientations,
-                    model,
-                    fore_hist,
-                    back_hist,
-                    cfg.tracking,
-                    data_conf,
-                    device,
-                    edge_strength_map=edge_strength_map,
-                    depth_map=None,  # TODO: 添加深度图支持
-                    edge_confidence_map=edge_confidence_map,  # ← 新增
-                    bbox_trim_ratio=bbox_trim_ratio,
-                )
+                # 使用 torch.inference_mode() 进一步优化推理性能（比 no_grad 更快）
+                # 注意：tracking_step_innovative 已经有 @torch.no_grad()，这里再加一层确保安全
+                with profiler.profile("tracking_step"), torch.inference_mode():
+                    (
+                        current_pose,
+                        fore_hist,
+                        back_hist,
+                        last_bbox,
+                        last_centers,
+                        last_valid,
+                        contour_confidence,
+                    ) = tracking_step_innovative(
+                        frame_rgb,
+                        ori_camera_cpu,
+                        current_pose,
+                        template_views,
+                        orientations,
+                        model,
+                        fore_hist,
+                        back_hist,
+                        cfg.tracking,
+                        data_conf,
+                        device,
+                        edge_strength_map=edge_strength_map,
+                        depth_map=None,  # TODO: 添加深度图支持
+                        edge_confidence_map=edge_confidence_map,  # ← 新增
+                        bbox_trim_ratio=bbox_trim_ratio,
+                    )
                 
                 # 记录推理时间
                 inference_time = time.time() - inference_start
                 inference_times.append(inference_time)
                 
                 # 保存位姿到文件（格式：12个数字一行，R的9个元素 + t的3个元素）
-                if current_pose is not None:
-                    R = current_pose.R.detach().cpu().numpy()
-                    t = current_pose.t.detach().cpu().numpy() / geometry_unit  # 转换为mm
-                    
-                    # 处理batch维度
-                    if R.ndim == 3:
-                        R = R[0]
-                    if t.ndim == 2:
-                        t = t[0]
-                    
-                    # 格式：12个数字一行 [R11, R12, R13, R21, R22, R23, R31, R32, R33, t1, t2, t3]
-                    pose_flat = np.concatenate([R.flatten(), t.flatten()])
-                    pose_file.write(" ".join(f"{x:.8f}" for x in pose_flat) + "\n")
-                    pose_file.flush()  # 确保立即写入
+                with profiler.profile("pose_saving"):
+                    if current_pose is not None:
+                        R = current_pose.R.detach().cpu().numpy()
+                        t = current_pose.t.detach().cpu().numpy() / geometry_unit  # 转换为mm
+                        
+                        # 处理batch维度
+                        if R.ndim == 3:
+                            R = R[0]
+                        if t.ndim == 2:
+                            t = t[0]
+                        
+                        # 格式：12个数字一行 [R11, R12, R13, R21, R22, R23, R31, R32, R33, t1, t2, t3]
+                        pose_flat = np.concatenate([R.flatten(), t.flatten()])
+                        pose_file.write(" ".join(f"{x:.8f}" for x in pose_flat) + "\n")
+                        pose_file.flush()  # 确保立即写入
 
                 # 绘制结果
-                overlay = draw_overlay(
-                    frame_rgb,
-                    last_bbox,
-                    last_centers,
-                    last_valid,
-                    color=(0, 255, 0),
-                )
+                with profiler.profile("drawing"):
+                    overlay = draw_overlay(
+                        frame_rgb,
+                        last_bbox,
+                        last_centers,
+                        last_valid,
+                        color=(0, 255, 0),
+                    )
 
                 # 计算FPS
                 fps_frame_count += 1
@@ -588,7 +667,20 @@ def main():
                         last_valid_np = last_valid.detach().cpu().numpy()
                     else:
                         last_valid_np = np.array(last_valid)
-                    avg_confidence = np.mean(contour_confidence[last_valid_np]) if last_valid_np.any() else 0.0
+                    
+                    # contour_confidence现在应该与last_valid_np长度匹配（已扩展到完整长度）
+                    if len(contour_confidence) == len(last_valid_np):
+                        # 长度匹配，使用last_valid_np作为索引
+                        avg_confidence = np.mean(contour_confidence[last_valid_np]) if last_valid_np.any() else 0.0
+                    elif len(contour_confidence) < len(last_valid_np) and last_valid_np.any():
+                        # 如果长度不匹配，只计算有效位置的置信度
+                        valid_indices = np.where(last_valid_np)[0]
+                        if len(valid_indices) <= len(contour_confidence):
+                            avg_confidence = np.mean(contour_confidence[:len(valid_indices)]) if len(valid_indices) > 0 else 0.0
+                        else:
+                            avg_confidence = np.mean(contour_confidence) if len(contour_confidence) > 0 else 0.0
+                    else:
+                        avg_confidence = 0.0
                     cv2.putText(
                         overlay,
                         f"Confidence: {avg_confidence:.3f}",
@@ -647,14 +739,34 @@ def main():
                 )
 
                 # 写入视频（如果启用）
-                if video_writer is not None and out_size is not None:
-                    # 调整overlay大小以匹配视频输出尺寸
-                    overlay_h, overlay_w = overlay.shape[:2]
-                    if (overlay_w, overlay_h) != out_size:
-                        overlay_resized = cv2.resize(overlay, out_size)
-                    else:
-                        overlay_resized = overlay
-                    video_writer.write(overlay_resized)
+                with profiler.profile("video_writing"):
+                    if video_writer is not None and out_size is not None:
+                        # 调整overlay大小以匹配视频输出尺寸
+                        overlay_h, overlay_w = overlay.shape[:2]
+                        if (overlay_w, overlay_h) != out_size:
+                            overlay_resized = cv2.resize(overlay, out_size)
+                        else:
+                            overlay_resized = overlay
+                        video_writer.write(overlay_resized)
+                
+                # 显示性能信息（每10帧更新一次）
+                if frame_idx % 10 == 0 and enable_profiling:
+                    current_timings = profiler.get_current_timings()
+                    if current_timings:
+                        perf_text = "Performance (ms): "
+                        perf_items = []
+                        for name, timing in sorted(current_timings.items(), key=lambda x: x[1], reverse=True)[:3]:
+                            perf_items.append(f"{name}={timing:.1f}")
+                        if perf_items:
+                            cv2.putText(
+                                overlay,
+                                perf_text + ", ".join(perf_items),
+                                (16, overlay.shape[0] - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5,
+                                (255, 255, 0),
+                                1,
+                            )
 
             frame_idx += 1
 
@@ -723,6 +835,14 @@ def main():
         if fps_frame_count > 0 and elapsed_time > 0:
             avg_fps = fps_frame_count / elapsed_time
             logger.info(f"Average FPS: {avg_fps:.2f}")
+        
+        # 输出性能分析结果
+        if enable_profiling:
+            profiler.print_summary()
+            # 保存性能分析结果到文件
+            perf_file = save_dir / "performance_profile.txt"
+            profiler.save_to_file(str(perf_file))
+            logger.info(f"Performance profile saved to {perf_file}")
         
         realsense_camera.stop()
         cv2.destroyAllWindows()

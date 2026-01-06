@@ -118,6 +118,7 @@ def prepare_initial_pose(cfg, template_views, orientations, device):
     return initial_view_idx, initial_pose, initial_template
 
 
+@torch.no_grad()
 def tracking_step_innovative(
         frame_rgb,
         ori_camera_cpu,
@@ -134,6 +135,11 @@ def tracking_step_innovative(
         depth_map=None,
         bbox_trim_ratio=0.0,
 ):
+    """
+    创新的追踪步骤：结合边缘强度和深度信息
+    
+    使用 @torch.no_grad() 装饰器避免构建 autograd graph，提升推理速度并减少显存占用
+    """
     """
     创新的追踪步骤：结合边缘强度和深度信息
 
@@ -309,11 +315,26 @@ def main():
         fps=cfg.camera.get("fps", 30),
     )
 
-    logger.info(
-        f"RealSense IR camera initialized: {realsense_camera.width}x{realsense_camera.height}, "
-        f"fx={realsense_camera.intrinsics['fx']:.2f}, fy={realsense_camera.intrinsics['fy']:.2f}, "
-        f"cx={realsense_camera.intrinsics['cx']:.2f}, cy={realsense_camera.intrinsics['cy']:.2f}"
-    )
+    # 重要：用RealSense实际内参覆盖YAML配置中的内参
+    # 这可以避免投影轮廓与真实轮廓的系统性偏差
+    if realsense_camera.intrinsics is not None:
+        cfg.camera.fx = float(realsense_camera.intrinsics['fx'])
+        cfg.camera.fy = float(realsense_camera.intrinsics['fy'])
+        cfg.camera.cx = float(realsense_camera.intrinsics['cx'])
+        cfg.camera.cy = float(realsense_camera.intrinsics['cy'])
+        logger.info(
+            f"RealSense IR camera initialized: {realsense_camera.width}x{realsense_camera.height}, "
+            f"fx={cfg.camera.fx:.2f}, fy={cfg.camera.fy:.2f}, "
+            f"cx={cfg.camera.cx:.2f}, cy={cfg.camera.cy:.2f}"
+        )
+        logger.info("Updated camera intrinsics in config with RealSense actual values")
+    else:
+        logger.warn("Failed to get RealSense intrinsics, using YAML config values")
+        logger.info(
+            f"Using YAML camera intrinsics: fx={cfg.camera.get('fx', 0):.2f}, "
+            f"fy={cfg.camera.get('fy', 0):.2f}, cx={cfg.camera.get('cx', 0):.2f}, "
+            f"cy={cfg.camera.get('cy', 0):.2f}"
+        )
 
     # 初始化CLAHE（如果启用）
     use_clahe = cfg.tracking.get("use_clahe", True)
@@ -378,9 +399,6 @@ def main():
             # 转换为BGR格式（用于显示和处理）
             frame_bgr = cv2.cvtColor(ir_image, cv2.COLOR_GRAY2BGR)
 
-            # 计算边缘强度图
-            edge_strength_map = compute_edge_strength(ir_image)
-
             frame_rgb, ori_camera_cpu = preprocess_frame(frame_bgr, cfg.camera, device)
             ori_camera = ori_camera_cpu.to(device)
 
@@ -418,35 +436,41 @@ def main():
                 )
             else:
                 # 追踪阶段
+                # 只在追踪阶段计算边缘提取（初始化阶段不需要）
+                edge_strength_map = compute_edge_strength(ir_image)
+                
                 bbox_trim_ratio = cfg.tracking.get("bbox_trim_ratio", 0.0)
 
                 # 记录推理开始时间
                 inference_start = time.time()
                 
-                (
-                    current_pose,
-                    fore_hist,
-                    back_hist,
-                    last_bbox,
-                    last_centers,
-                    last_valid,
-                    contour_confidence,
-                ) = tracking_step_innovative(
-                    frame_rgb,
-                    ori_camera_cpu,
-                    current_pose,
-                    template_views,
-                    orientations,
-                    model,
-                    fore_hist,
-                    back_hist,
-                    cfg.tracking,
-                    data_conf,
-                    device,
-                    edge_strength_map=edge_strength_map,
-                    depth_map=None,  # TODO: 添加深度图支持
-                    bbox_trim_ratio=bbox_trim_ratio,
-                )
+                # 使用 torch.inference_mode() 进一步优化推理性能（比 no_grad 更快）
+                # 注意：tracking_step_innovative 已经有 @torch.no_grad()，这里再加一层确保安全
+                with torch.inference_mode():
+                    (
+                        current_pose,
+                        fore_hist,
+                        back_hist,
+                        last_bbox,
+                        last_centers,
+                        last_valid,
+                        contour_confidence,
+                    ) = tracking_step_innovative(
+                        frame_rgb,
+                        ori_camera_cpu,
+                        current_pose,
+                        template_views,
+                        orientations,
+                        model,
+                        fore_hist,
+                        back_hist,
+                        cfg.tracking,
+                        data_conf,
+                        device,
+                        edge_strength_map=edge_strength_map,
+                        depth_map=None,  # TODO: 添加深度图支持
+                        bbox_trim_ratio=bbox_trim_ratio,
+                    )
                 
                 # 记录推理时间
                 inference_time = time.time() - inference_start

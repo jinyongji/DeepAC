@@ -1,0 +1,16 @@
+{
+  "total_frames": 386,
+  "valid_frames": 386,
+  "add_accuracy": 0.9559585492227979,
+  "rotation_accuracy": 0.8989637305699482,
+  "combined_accuracy": 0.8989637305699482,
+  "mean_add_error": 0.007023084040335915,
+  "mean_rotation_error": 7.182090133099615,
+  "mean_translation_error": 0.005517082540940889,
+  "median_add_error": 0.0035342205418345575,
+  "median_rotation_error": 1.0041926330360853,
+  "median_translation_error": 0.0034880596653821126,
+  "std_add_error": 0.013590607530137976,
+  "std_rotation_error": 22.18948354255938,
+  "std_translation_error": 0.009206505813902071
+}
